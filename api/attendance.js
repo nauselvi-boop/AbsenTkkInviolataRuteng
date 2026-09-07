@@ -1,0 +1,181 @@
+// api/attendance.js
+import { neon } from '@neondatabase/serverless';
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  try {
+    const sql = neon(process.env.DATABASE_URL);
+    const today = new Date().toISOString().split('T')[0];
+
+    // ---- GET ----
+    if (req.method === 'GET') {
+      const result = await sql`
+        SELECT 
+          a.id,
+          a.user_id,
+          a.attendance_date,
+          a.check_in_time,
+          a.check_in_lat,
+          a.check_in_lng,
+          a.check_in_photo_path,
+          a.check_in_ip_address,
+          a.check_out_time,
+          a.check_out_lat,
+          a.check_out_lng,
+          a.check_out_photo_path,
+          a.check_out_ip_address,
+          a.status,
+          a.notes,
+          a.location,
+          a.verified_by,
+          a.created_at,
+          a.updated_at,
+          u.full_name AS user_name,
+          u.nip,
+          r.name AS user_role
+        FROM attendance a
+        LEFT JOIN users u ON a.user_id = u.id
+        LEFT JOIN roles r ON u.role_id = r.id
+        ORDER BY a.attendance_date DESC, a.check_in_time DESC
+      `;
+      return res.status(200).json({ success: true, data: result });
+    }
+
+    // ---- POST ----
+    if (req.method === 'POST') {
+      const { user_id, date, status, location, notes, photo, lat, lng } = req.body;
+
+      console.log('📥 Data diterima:', { user_id, date, status, location, notes, lat, lng, photoLength: photo?.length });
+
+      // Validasi
+      if (!user_id || !date) {
+        console.log('❌ Validasi gagal: user_id atau date kosong');
+        return res.status(400).json({ success: false, error: 'user_id dan date wajib diisi' });
+      }
+
+      // Format date (jika dalam format ISO, ambil YYYY-MM-DD)
+      let formattedDate = date;
+      if (date.includes('T')) {
+        formattedDate = date.split('T')[0];
+      }
+      // Pastikan format YYYY-MM-DD
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(formattedDate)) {
+        console.log('❌ Format tanggal tidak valid:', formattedDate);
+        return res.status(400).json({ success: false, error: 'Format tanggal harus YYYY-MM-DD' });
+      }
+
+      // Cek apakah user_id ada di tabel users
+      const userCheck = await sql`SELECT id FROM users WHERE id = ${user_id}`;
+      if (userCheck.length === 0) {
+        console.log('❌ user_id tidak ditemukan:', user_id);
+        return res.status(400).json({ success: false, error: 'User tidak terdaftar' });
+      }
+
+      // Cek apakah sudah ada record hari ini
+      const existing = await sql`
+        SELECT id, check_in_time, check_out_time 
+        FROM attendance 
+        WHERE user_id = ${user_id} AND attendance_date = ${formattedDate}
+      `;
+
+      // ---- CHECK-IN ----
+      if (existing.length === 0) {
+        const now = new Date();
+        const checkInTime = now.toISOString();
+
+        // Batasi ukuran foto (max 500KB)
+        let photoData = photo;
+        if (photo && photo.length > 500000) {
+          console.log('⚠️ Foto terlalu besar, diabaikan');
+          photoData = null;
+        }
+
+        const result = await sql`
+          INSERT INTO attendance (
+            user_id,
+            attendance_date,
+            check_in_time,
+            status,
+            location,
+            notes,
+            check_in_lat,
+            check_in_lng,
+            check_in_photo_path,
+            created_at,
+            updated_at
+          ) VALUES (
+            ${user_id},
+            ${formattedDate},
+            ${checkInTime},
+            ${status || 'hadir'},
+            ${location || null},
+            ${notes || null},
+            ${lat || null},
+            ${lng || null},
+            ${photoData || null},
+            NOW(),
+            NOW()
+          )
+          RETURNING *
+        `;
+        console.log('✅ Check-in berhasil:', result[0]);
+        return res.status(200).json({
+          success: true,
+          message: 'Check-in berhasil',
+          data: result[0],
+          type: 'check-in',
+        });
+      }
+
+      // ---- CHECK-OUT ----
+      const record = existing[0];
+      if (record.check_out_time !== null) {
+        console.log('❌ Sudah check-out hari ini');
+        return res.status(400).json({
+          success: false,
+          error: 'Anda sudah melakukan check-out hari ini. Tidak bisa absen lagi.',
+        });
+      }
+
+      if (record.check_in_time !== null && record.check_out_time === null) {
+        const now = new Date();
+        const checkOutTime = now.toISOString();
+
+        const result = await sql`
+          UPDATE attendance
+          SET 
+            check_out_time = ${checkOutTime},
+            updated_at = NOW()
+          WHERE id = ${record.id}
+          RETURNING *
+        `;
+        console.log('✅ Check-out berhasil:', result[0]);
+        return res.status(200).json({
+          success: true,
+          message: 'Check-out berhasil',
+          data: result[0],
+          type: 'check-out',
+        });
+      }
+
+      return res.status(400).json({ success: false, error: 'Status absensi tidak valid' });
+    }
+
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
+
+  } catch (error) {
+    console.error('❌ Error di API attendance:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      detail: error.message,
+    });
+  }
+}

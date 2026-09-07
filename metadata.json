@@ -1,0 +1,6 @@
+{
+  "name": "AbsenKU Profesional",
+  "description": "Sistem Informasi Presensi Online TKK Inviolata Ruteng dengan Live Tracking GPS, Grafik Guru & Pegawai, Grafik Kehadiran, Rekap Kehadiran Realtime, serta Pratinjau Aplikasi Mobile.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
