@@ -138,7 +138,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // ===== APPROVE / REJECT IZIN =====
   const handleApproveIzin = async (id: number) => {
     try {
       const res = await fetch('/api/izin', {
@@ -177,13 +176,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // ===== LIHAT ATTACHMENT =====
   const openAttachment = (base64: string) => {
     if (!base64) return;
     window.open(base64, '_blank');
   };
 
-  // ===== AKTIVASI TOMBOL ABSEN =====
   const handleAktivasiAbsen = async (userId: string) => {
     try {
       const res = await fetch('/api/attendance/activate', {
@@ -204,7 +201,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // ===== PENGUMUMAN =====
   const handleAddAnnouncement = () => {
     if (!newAnnouncement.title || !newAnnouncement.content) {
       alert('Judul dan konten wajib diisi.');
@@ -267,7 +263,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // ===== DASHBOARD UTAMA – SESUAI GAMBAR REFERENSI =====
+  // ===== DASHBOARD UTAMA – LAYOUT BARU (SESUAI GAMBAR) =====
   const renderMonitoring = () => {
     const adminUser = users.find(u => u.role === 'ADMIN');
 
