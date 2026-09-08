@@ -50,35 +50,60 @@ export default async function handler(req, res) {
 
     // ---- POST ----
     if (req.method === 'POST') {
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      // Endpoint aktivasi
+      if (url.pathname.endsWith('/activate')) {
+        const { user_id, date } = req.body;
+        if (!user_id || !date) {
+          return res.status(400).json({ success: false, error: 'user_id dan date wajib diisi' });
+        }
+        // Cek apakah sudah ada record hari ini
+        const existing = await sql`
+          SELECT id, check_out_time FROM attendance
+          WHERE user_id = ${user_id} AND attendance_date = ${date}
+        `;
+        if (existing.length > 0) {
+          // Jika sudah ada record, hapus check_out_time agar bisa absen lagi
+          await sql`
+            UPDATE attendance
+            SET check_out_time = NULL, updated_at = NOW()
+            WHERE id = ${existing[0].id}
+          `;
+        } else {
+          // Jika belum ada record, buat record kosong dengan status pending
+          await sql`
+            INSERT INTO attendance (user_id, attendance_date, status, created_at, updated_at)
+            VALUES (${user_id}, ${date}, 'pending', NOW(), NOW())
+          `;
+        }
+        return res.status(200).json({ success: true, message: 'Tombol absen diaktifkan kembali' });
+      }
+
+      // ---- Normal POST (check-in / check-out) ----
       const { user_id, date, status, location, notes, photo, lat, lng } = req.body;
 
       console.log('📥 Data diterima:', { user_id, date, status, location, notes, lat, lng, photoLength: photo?.length });
 
-      // Validasi
       if (!user_id || !date) {
-        console.log('❌ Validasi gagal: user_id atau date kosong');
         return res.status(400).json({ success: false, error: 'user_id dan date wajib diisi' });
       }
 
-      // Format date (jika dalam format ISO, ambil YYYY-MM-DD)
+      // Format date
       let formattedDate = date;
       if (date.includes('T')) {
         formattedDate = date.split('T')[0];
       }
-      // Pastikan format YYYY-MM-DD
       if (!/^\d{4}-\d{2}-\d{2}$/.test(formattedDate)) {
-        console.log('❌ Format tanggal tidak valid:', formattedDate);
         return res.status(400).json({ success: false, error: 'Format tanggal harus YYYY-MM-DD' });
       }
 
-      // Cek apakah user_id ada di tabel users
+      // Cek user
       const userCheck = await sql`SELECT id FROM users WHERE id = ${user_id}`;
       if (userCheck.length === 0) {
-        console.log('❌ user_id tidak ditemukan:', user_id);
         return res.status(400).json({ success: false, error: 'User tidak terdaftar' });
       }
 
-      // Cek apakah sudah ada record hari ini
+      // Cek existing record
       const existing = await sql`
         SELECT id, check_in_time, check_out_time 
         FROM attendance 
@@ -90,7 +115,6 @@ export default async function handler(req, res) {
         const now = new Date();
         const checkInTime = now.toISOString();
 
-        // Batasi ukuran foto (max 500KB)
         let photoData = photo;
         if (photo && photo.length > 500000) {
           console.log('⚠️ Foto terlalu besar, diabaikan');

@@ -1,38 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { AttendanceRecord, GeofenceConfig, User, AttendanceUnlockRequest } from '../types';
+import { AttendanceRecord, GeofenceConfig, User } from '../types';
+import { GeofenceMap } from './GeofenceMap';
 import { AttendanceReports } from './AttendanceReports';
 import { UserManagement } from './UserManagement';
 import { AdminGeofenceSettings } from './AdminGeofenceSettings';
 import {
+  Activity,
   Users,
+  FileSpreadsheet,
+  Settings,
   Clock,
   UserCheck,
   UserX,
+  MapPin,
   ShieldCheck,
   CheckSquare,
   Megaphone,
+  Plus,
+  Trash2,
   CheckCircle,
   XCircle,
   FileText,
-  Building2,
-  Download,
+  AlertCircle,
 } from 'lucide-react';
-import { AbsenKuLogo } from './absenku/AbsenKuLogo';
-import { ActionMenuGrid } from './absenku/ActionMenuGrid';
-import { TrackingLocationCard } from './absenku/TrackingLocationCard';
-import {
-  MasterDataModal,
-  JadwalSentraModal,
-  PengaturanAbsensiModal,
-  InformasiUmumModal,
-  ProfilSekolahModal,
-  SelfieDetailModal,
-} from './absenku/AbsenKuModals';
-import { PermohonanBukaKunciModal } from './absenku/PermohonanBukaKunciModal';
-import { exportAttendanceToExcel } from '../utils/excelUtils';
-import { ExcelReportDropdown } from './absenku/ExcelReportDropdown';
 
-// Tipe data izin
 interface IzinRequest {
   id: number;
   user_id: number;
@@ -42,12 +33,11 @@ interface IzinRequest {
   reason: string;
   date: string;
   status: 'pending' | 'approved' | 'rejected';
-  attachment?: string;
+  attachment?: string | null;
   admin_notes?: string;
   created_at: string;
 }
 
-// Tipe data pengumuman
 interface Announcement {
   id: string;
   title: string;
@@ -65,10 +55,9 @@ interface AdminDashboardProps {
   onUpdateUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
   onImportUsers: (newUsers: Omit<User, 'id' | 'createdAt'>[]) => void;
-  activeTab: 'monitoring' | 'laporan' | 'pengguna' | 'geofence' | 'izin' | 'pengumuman' | 'profile';
+  activeTab: 'monitoring' | 'laporan' | 'pengguna' | 'geofence' | 'aktivasi_absen' | 'izin_tidak_masuk' | 'pengumuman' | 'profile';
   onTabChange: (tab: any) => void;
-  reportPreset?: 'ALL' | 'TODAY' | 'WEEK' | 'MONTH';
-  onSelectReportPreset?: (preset: 'ALL' | 'TODAY' | 'WEEK' | 'MONTH') => void;
+  onRefresh?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -82,24 +71,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onImportUsers,
   activeTab,
   onTabChange,
-  reportPreset = 'ALL',
-  onSelectReportPreset,
+  onRefresh,
 }) => {
-  const [internalReportPreset, setInternalReportPreset] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>(reportPreset);
-
-  useEffect(() => {
-    if (reportPreset) {
-      setInternalReportPreset(reportPreset);
-    }
-  }, [reportPreset]);
-
-  const handleNavigateToReportWithPreset = (preset: 'TODAY' | 'WEEK' | 'MONTH' | 'ALL') => {
-    setInternalReportPreset(preset);
-    if (onSelectReportPreset) {
-      onSelectReportPreset(preset);
-    }
-    onTabChange('laporan');
-  };
   const todayStr = new Date().toISOString().split('T')[0];
   const todayRecords = records.filter((r) => r.date === todayStr);
 
@@ -109,34 +82,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const lateCount = todayRecords.filter((r) => r.checkInStatus === 'TERLAMBAT').length;
   const absentCount = Math.max(0, totalStaffCount - presentCount);
 
-  // ---- Modals State ----
-  const [isMasterDataOpen, setIsMasterDataOpen] = useState(false);
-  const [isJadwalSentraOpen, setIsJadwalSentraOpen] = useState(false);
-  const [isInformasiUmumOpen, setIsInformasiUmumOpen] = useState(false);
-  const [isPengaturanAbsensiOpen, setIsPengaturanAbsensiOpen] = useState(false);
-  const [isProfilSekolahOpen, setIsProfilSekolahOpen] = useState(false);
-  const [isDispensasiOpen, setIsDispensasiOpen] = useState(false);
-  const [selectedSelfieRecord, setSelectedSelfieRecord] = useState<AttendanceRecord | null>(null);
+  const staffPins = todayRecords.map((r) => ({
+    id: r.id,
+    userName: r.userName,
+    userRole: r.userRole,
+    time: r.checkInTime,
+    location: r.checkInLocation,
+  }));
 
-  // ---- State Izin & Kunci ----
+  // ===== STATE IZIN =====
   const [izinRequests, setIzinRequests] = useState<IzinRequest[]>([]);
   const [izinLoading, setIzinLoading] = useState(false);
 
-  // State for Dispensasi / Unlock Requests
-  const [unlockRequests, setUnlockRequests] = useState<AttendanceUnlockRequest[]>([
-    {
-      id: 'req-1',
-      userId: users.find((u) => u.role !== 'ADMIN')?.id || '2',
-      userName: 'Ibu Yuliana Nardi, S.Pd.',
-      userRole: 'GURU',
-      requestType: 'MASUK',
-      reason: 'GPS HP sempat lemah saat tiba di gerbang TKK Inviolata pukul 07.15 WITA',
-      requestedAt: new Date().toISOString(),
-      status: 'MENUNGGU',
-    },
-  ]);
-
-  // ---- State Pengumuman ----
+  // ===== STATE PENGUMUMAN =====
   const [announcements, setAnnouncements] = useState<Announcement[]>([
     {
       id: '1',
@@ -147,17 +105,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     },
     {
       id: '2',
-      title: 'Rapat Guru Sentra & KBM',
-      content: 'Jumat, 11 September 2026 pukul 12:30 WITA di Ruang Guru TKK Inviolata',
+      title: 'Rapat Guru',
+      content: 'Jumat, 11 September 2026 pukul 13:00 WITA',
       date: '2026-09-11',
       isPinned: false,
     },
   ]);
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', date: '' });
 
-  // Fetch Izin saat tab aktif
+  // ===== FETCH IZIN =====
   useEffect(() => {
-    if (activeTab === 'izin') {
+    if (activeTab === 'izin_tidak_masuk' || activeTab === 'aktivasi_absen') {
       fetchIzin();
     }
   }, [activeTab]);
@@ -170,458 +128,110 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (data.success) {
         setIzinRequests(data.data);
       }
-    } catch (err) {
-      console.error('Gagal memuat izin:', err);
+    } catch (error) {
+      console.error('Gagal fetch izin:', error);
     } finally {
       setIzinLoading(false);
     }
   };
 
+  // ===== APPROVE / REJECT IZIN =====
   const handleApproveIzin = async (id: number) => {
     try {
-      const res = await fetch(`/api/izin/${id}/approve`, {
-        method: 'POST',
+      const res = await fetch('/api/izin', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ admin_notes: 'Disetujui oleh Kepala Sekolah' }),
+        body: JSON.stringify({ id, status: 'approved' }),
       });
       const data = await res.json();
       if (data.success) {
-        fetchIzin();
+        alert('✅ Izin disetujui.');
+        await fetchIzin();
+      } else {
+        alert('❌ Gagal approve: ' + data.error);
       }
-    } catch (err) {
-      console.error('Gagal approve izin:', err);
+    } catch (error: any) {
+      alert('❌ Error: ' + error.message);
     }
   };
 
   const handleRejectIzin = async (id: number) => {
     try {
-      const res = await fetch(`/api/izin/${id}/reject`, {
-        method: 'POST',
+      const res = await fetch('/api/izin', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ admin_notes: 'Ditolak' }),
+        body: JSON.stringify({ id, status: 'rejected' }),
       });
       const data = await res.json();
       if (data.success) {
-        fetchIzin();
+        alert('❌ Izin ditolak.');
+        await fetchIzin();
+      } else {
+        alert('❌ Gagal reject: ' + data.error);
       }
-    } catch (err) {
-      console.error('Gagal reject izin:', err);
+    } catch (error: any) {
+      alert('❌ Error: ' + error.message);
     }
   };
 
-  const handleApproveUnlock = (requestId: string) => {
-    setUnlockRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: 'DISETUJUI' } : r))
-    );
+  // ===== LIHAT ATTACHMENT =====
+  const openAttachment = (base64: string) => {
+    if (!base64) return;
+    window.open(base64, '_blank');
   };
 
-  const handleRejectUnlock = (requestId: string) => {
-    setUnlockRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: 'DITOLAK' } : r))
-    );
+  // ===== AKTIVASI TOMBOL ABSEN =====
+  const handleAktivasiAbsen = async (userId: string) => {
+    try {
+      const res = await fetch('/api/attendance/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, date: todayStr }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Tombol absen diaktifkan kembali.');
+        await fetchIzin();
+        if (onRefresh) onRefresh();
+      } else {
+        alert('❌ Gagal aktivasi: ' + data.error);
+      }
+    } catch (error: any) {
+      alert('❌ Error: ' + error.message);
+    }
   };
 
-  const handleAddAnnouncement = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newAnnouncement.title || !newAnnouncement.content) return;
+  // ===== PENGUMUMAN =====
+  const handleAddAnnouncement = () => {
+    if (!newAnnouncement.title || !newAnnouncement.content) {
+      alert('Judul dan konten wajib diisi.');
+      return;
+    }
     const newItem: Announcement = {
       id: Date.now().toString(),
       title: newAnnouncement.title,
       content: newAnnouncement.content,
-      date: newAnnouncement.date || todayStr,
+      date: newAnnouncement.date || new Date().toISOString().split('T')[0],
       isPinned: false,
     };
     setAnnouncements([newItem, ...announcements]);
     setNewAnnouncement({ title: '', content: '', date: '' });
+    alert('✅ Pengumuman berhasil ditambahkan.');
   };
 
   const handleDeleteAnnouncement = (id: string) => {
-    setAnnouncements(announcements.filter((a) => a.id !== id));
-  };
-
-  const handleExportExcel = () => {
-    exportAttendanceToExcel(
-      records,
-      `Rekap_Presensi_TKK_Inviolata_${todayStr}.xlsx`
-    );
-  };
-
-  const openAttachment = (url: string) => {
-    const w = window.open();
-    if (w) {
-      w.document.write(`<img src="${url}" style="max-width:100%; height:auto;" />`);
+    if (confirm('Hapus pengumuman ini?')) {
+      setAnnouncements(prev => prev.filter(a => a.id !== id));
     }
   };
 
-  // ---- 1. MONITORING TAB (Exact Match to Screenshot) ----
-  const renderMonitoring = () => (
-    <div className="space-y-4">
-      {/* Top Breadcrumb Card */}
-      <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between shadow-2xs">
-        <div className="flex items-center gap-2 text-slate-800">
-          <Building2 className="w-4 h-4 text-[#0088cc]" />
-          <h2 className="font-bold text-xs sm:text-sm">
-            Dashboard Presensi TKK Inviolata Ruteng
-          </h2>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsDispensasiOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-2xs transition"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
-            <span>Daftar Dispensasi</span>
-          </button>
-          <ExcelReportDropdown
-            records={records}
-            variant="button"
-            onNavigateToReport={handleNavigateToReportWithPreset}
-          />
-        </div>
-      </div>
-
-      {/* Two-Column Grid matching Screenshot 2026-09-05 120732.png */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-        {/* Left Column: absenKU Card with 6 Action Buttons */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs flex flex-col justify-between">
-          {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            {/* Swirl Logo + absenKU */}
-            <div className="flex items-center gap-2.5">
-              <AbsenKuLogo size="md" variant="dark" />
-            </div>
-
-            {/* Admin Utama Profile */}
-            <div className="text-right">
-              <span className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold px-2.5 py-0.5 rounded-full inline-block mb-0.5">
-                Admin Utama
-              </span>
-              <p className="font-bold text-slate-800 text-xs sm:text-sm">
-                Sr. Maria Inviolata, S.Pd.
-              </p>
-            </div>
-          </div>
-
-          {/* 6 Action Menu Buttons */}
-          <div className="mt-4 flex-1">
-            <ActionMenuGrid
-              onOpenMasterData={() => setIsMasterDataOpen(true)}
-              onOpenJadwalSentra={() => setIsJadwalSentraOpen(true)}
-              onOpenLaporan={() => onTabChange('laporan')}
-              onOpenInformasiUmum={() => setIsInformasiUmumOpen(true)}
-              onOpenPengaturanAbsensi={() => setIsPengaturanAbsensiOpen(true)}
-              onOpenPengaturanProfile={() => setIsProfilSekolahOpen(true)}
-            />
-          </div>
-        </div>
-
-        {/* Right Column: Tracking Lokasi Guru TKK Inviolata */}
-        <div className="lg:col-span-5 flex flex-col">
-          <TrackingLocationCard
-            users={users}
-            geofenceConfig={geofenceConfig}
-          />
-        </div>
-      </div>
-
-      {/* Quick Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              Total Guru & Staf
-            </span>
-            <Users className="w-3.5 h-3.5 text-slate-400" />
-          </div>
-          <p className="text-xl font-extrabold text-slate-900 mt-1">{totalStaffCount}</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">Pendidik & Pegawai aktif</p>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
-              Hadir Hari Ini
-            </span>
-            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-          </div>
-          <p className="text-xl font-extrabold text-emerald-600 mt-1">{presentCount}</p>
-          <p className="text-[10px] text-emerald-700/80 mt-0.5">
-            {totalStaffCount > 0 ? Math.round((presentCount / totalStaffCount) * 100) : 0}% kehadiran
-          </p>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">
-              Terlambat
-            </span>
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
-          </div>
-          <p className="text-xl font-extrabold text-amber-600 mt-1">{lateCount}</p>
-          <p className="text-[10px] text-amber-700/80 mt-0.5">Lewat jam {geofenceConfig.checkInDeadlineTime}</p>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">
-              Belum Absen
-            </span>
-            <UserX className="w-3.5 h-3.5 text-rose-500" />
-          </div>
-          <p className="text-xl font-extrabold text-rose-600 mt-1">{absentCount}</p>
-          <p className="text-[10px] text-rose-700/80 mt-0.5">Belum tap presensi masuk</p>
-        </div>
-      </div>
-
-      {/* Aktivitas Presensi Hari Ini */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-        <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-3">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#0088cc]" />
-            <h3 className="font-bold text-xs sm:text-sm text-slate-800">
-              Aktivitas Presensi Terkini Hari Ini
-            </h3>
-          </div>
-          <span className="text-xs text-slate-500 font-medium">
-            {todayRecords.length} catatan hari ini
-          </span>
-        </div>
-
-        {todayRecords.length === 0 ? (
-          <div className="py-6 text-center text-slate-400 text-xs">
-            Belum ada data presensi hari ini.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-            {todayRecords.map((rec) => (
-              <div
-                key={rec.id}
-                className="flex items-center justify-between p-2.5 rounded-lg border border-slate-100 hover:bg-slate-50 transition text-xs"
-              >
-                <div className="flex items-center gap-2.5">
-                  {rec.checkInPhoto ? (
-                    <img
-                      src={rec.checkInPhoto}
-                      alt={rec.userName}
-                      onClick={() => setSelectedSelfieRecord(rec)}
-                      className="w-9 h-9 rounded-lg object-cover border border-slate-200 cursor-pointer hover:opacity-80 transition"
-                      title="Klik untuk melihat bukti foto selfie"
-                    />
-                  ) : (
-                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-xs">
-                      {rec.userName.charAt(0)}
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-bold text-slate-800 text-xs">{rec.userName}</p>
-                    <p className="text-[10px] text-slate-500">
-                      NIP: {rec.nip} • {rec.userRole}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      rec.checkInStatus === 'TEPAT_WAKTU'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {rec.checkInTime} WITA ({rec.checkInStatus === 'TEPAT_WAKTU' ? 'Tepat Waktu' : 'Terlambat'})
-                  </span>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    GPS: {rec.checkInLocation.distanceMeters}m (Radius {geofenceConfig.radiusMeters}m)
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  // ---- 2. IZIN & KUNCI TAB ----
-  const renderIzin = () => (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
-      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-4">
-        <CheckSquare className="w-5 h-5 text-[#0088cc]" />
-        Persetujuan Izin & Kunci Presensi
-      </h3>
-      {izinLoading ? (
-        <p className="text-center text-slate-500">Memuat data...</p>
-      ) : izinRequests.length === 0 ? (
-        <p className="text-center text-slate-400">Tidak ada permintaan izin aktif saat ini.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600 font-semibold">
-              <tr>
-                <th className="p-3 text-left">Nama</th>
-                <th className="p-3 text-left">NIP</th>
-                <th className="p-3 text-left">Tanggal</th>
-                <th className="p-3 text-left">Jenis</th>
-                <th className="p-3 text-left">Alasan</th>
-                <th className="p-3 text-left">Bukti</th>
-                <th className="p-3 text-left">Status</th>
-                <th className="p-3 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {izinRequests.map((req) => (
-                <tr key={req.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="p-3 font-medium">{req.user_name}</td>
-                  <td className="p-3 text-xs">{req.user_nip}</td>
-                  <td className="p-3 text-xs">{req.date}</td>
-                  <td className="p-3">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                        req.type === 'dispensasi'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}
-                    >
-                      {req.type === 'dispensasi' ? '🔓 Dispensasi' : '📝 Izin'}
-                    </span>
-                  </td>
-                  <td className="p-3 text-xs max-w-xs truncate">{req.reason}</td>
-                  <td className="p-3 text-center">
-                    {req.attachment ? (
-                      <button
-                        onClick={() => openAttachment(req.attachment!)}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-semibold underline flex items-center gap-1"
-                      >
-                        <FileText className="w-3 h-3" />
-                        Lihat
-                      </button>
-                    ) : (
-                      <span className="text-gray-400 text-xs">Tidak ada</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                        req.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : req.status === 'approved'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {req.status === 'pending'
-                        ? '⏳ Menunggu'
-                        : req.status === 'approved'
-                        ? '✅ Disetujui'
-                        : '❌ Ditolak'}
-                    </span>
-                  </td>
-                  <td className="p-3 text-center">
-                    {req.status === 'pending' && (
-                      <div className="flex justify-center gap-2">
-                        <button
-                          onClick={() => handleApproveIzin(req.id)}
-                          className="text-green-600 hover:text-green-800 p-1"
-                          title="Setujui"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleRejectIzin(req.id)}
-                          className="text-red-600 hover:text-red-800 p-1"
-                          title="Tolak"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-
-  // ---- 3. PENGUMUMAN TAB ----
-  const renderPengumuman = () => (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
-      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-4">
-        <Megaphone className="w-5 h-5 text-[#0088cc]" />
-        Pengumuman Sekolah TKK Inviolata
-      </h3>
-
-      <div className="bg-slate-50 rounded-xl p-4 mb-6">
-        <h4 className="font-semibold text-slate-700 mb-2">Tambah Pengumuman Baru</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <input
-            type="text"
-            placeholder="Judul Pengumuman"
-            value={newAnnouncement.title}
-            onChange={(e) => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })}
-            className="border border-slate-200 rounded-lg p-2 text-sm bg-white"
-          />
-          <input
-            type="text"
-            placeholder="Isi Pengumuman"
-            value={newAnnouncement.content}
-            onChange={(e) => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })}
-            className="border border-slate-200 rounded-lg p-2 text-sm bg-white"
-          />
-          <input
-            type="date"
-            value={newAnnouncement.date}
-            onChange={(e) => setNewAnnouncement({ ...newAnnouncement, date: e.target.value })}
-            className="border border-slate-200 rounded-lg p-2 text-sm bg-white"
-          />
-        </div>
-        <button
-          onClick={handleAddAnnouncement}
-          className="mt-3 bg-[#0088cc] hover:bg-[#0077b5] text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
-        >
-          Publikasikan Pengumuman
-        </button>
-      </div>
-
-      <div className="space-y-3">
-        {announcements.map((item) => (
-          <div
-            key={item.id}
-            className="border border-slate-200 p-4 rounded-xl flex justify-between items-start hover:bg-slate-50 transition"
-          >
-            <div>
-              <h5 className="font-bold text-slate-800 text-sm">{item.title}</h5>
-              <p className="text-slate-600 text-xs mt-1">{item.content}</p>
-              <span className="text-[10px] text-slate-400 mt-2 block">{item.date}</span>
-            </div>
-            <button
-              onClick={() => handleDeleteAnnouncement(item.id)}
-              className="text-rose-500 hover:text-rose-700 text-xs font-semibold"
-            >
-              Hapus
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // ---- TAB SWITCHER DISPATCH ----
+  // ===== RENDER TAB CONTENT =====
   const renderTabContent = () => {
     switch (activeTab) {
       case 'monitoring':
         return renderMonitoring();
       case 'laporan':
-        return (
-          <AttendanceReports
-            records={records}
-            isPersonalView={false}
-            initialDatePreset={reportPreset || internalReportPreset}
-          />
-        );
+        return <AttendanceReports records={records} isPersonalView={false} />;
       case 'pengguna':
         return (
           <UserManagement
@@ -634,36 +244,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         );
       case 'geofence':
         return <AdminGeofenceSettings config={geofenceConfig} onSaveConfig={onSaveGeofenceConfig} />;
-      case 'izin':
-        return renderIzin();
+      case 'aktivasi_absen':
+        return renderAktivasiAbsen();
+      case 'izin_tidak_masuk':
+        return renderIzinTidakMasuk();
       case 'pengumuman':
         return renderPengumuman();
       case 'profile':
         return (
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-            <h3 className="text-xl font-bold text-slate-800">Profil Administrator Utama</h3>
-            <div className="mt-4 space-y-2 text-sm text-slate-700">
-              <p>
-                <span className="font-semibold text-slate-500 w-32 inline-block">Nama:</span>
-                {users.find((u) => u.role === 'ADMIN')?.name || 'Sr. Maria Inviolata, S.Pd.'}
-              </p>
-              <p>
-                <span className="font-semibold text-slate-500 w-32 inline-block">Jabatan:</span>
-                Kepala Sekolah & Penanggung Jawab
-              </p>
-              <p>
-                <span className="font-semibold text-slate-500 w-32 inline-block">Email:</span>
-                {users.find((u) => u.role === 'ADMIN')?.email || 'kepala@tkkinviolata.sch.id'}
-              </p>
-              <p>
-                <span className="font-semibold text-slate-500 w-32 inline-block">NIP:</span>
-                {users.find((u) => u.role === 'ADMIN')?.nip || '197805122002122001'}
-              </p>
-              <p>
-                <span className="font-semibold text-slate-500 w-32 inline-block">Lembaga:</span>
-                TKK Inviolata Ruteng (Manggarai, NTT)
-              </p>
-            </div>
+          <div className="bg-white rounded-2xl border p-6">
+            <h3 className="text-xl font-bold">Profil Admin</h3>
+            <p>Nama: {users.find(u => u.role === 'ADMIN')?.name || '-'}</p>
+            <p>Email: {users.find(u => u.role === 'ADMIN')?.email || '-'}</p>
+            <p>NIP: {users.find(u => u.role === 'ADMIN')?.nip || '-'}</p>
           </div>
         );
       default:
@@ -671,63 +264,343 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // ===== MONITORING =====
+  const renderMonitoring = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 uppercase">Total Guru & Staf</span>
+            <Users className="w-4 h-4 text-slate-400" />
+          </div>
+          <p className="text-2xl font-extrabold text-slate-900 mt-2">{totalStaffCount}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Pegawai aktif terdaftar</p>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-emerald-600 uppercase">Hadir Hari Ini</span>
+            <UserCheck className="w-4 h-4 text-emerald-600" />
+          </div>
+          <p className="text-2xl font-extrabold text-emerald-600 mt-2">{presentCount}</p>
+          <p className="text-[11px] text-emerald-700/80 mt-0.5">
+            {totalStaffCount > 0 ? Math.round((presentCount / totalStaffCount) * 100) : 0}% kehadiran
+          </p>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-amber-600 uppercase">Terlambat</span>
+            <Clock className="w-4 h-4 text-amber-600" />
+          </div>
+          <p className="text-2xl font-extrabold text-amber-600 mt-2">{lateCount}</p>
+          <p className="text-[11px] text-amber-700/80 mt-0.5">Lewat jam {geofenceConfig.checkInDeadlineTime}</p>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-rose-500 uppercase">Belum Absen</span>
+            <UserX className="w-4 h-4 text-rose-500" />
+          </div>
+          <p className="text-2xl font-extrabold text-rose-600 mt-2">{absentCount}</p>
+          <p className="text-[11px] text-rose-700/80 mt-0.5">Guru & pegawai belum hadir</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-emerald-600" />
+                Peta Pemantauan Lokasi Real-Time
+              </h3>
+              <p className="text-[11px] text-slate-500">Menampilkan zona geofence sekolah ({geofenceConfig.radiusMeters}m) dan koordinat absensi seluruh guru & staf hari ini.</p>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Live Monitoring
+            </div>
+          </div>
+          <GeofenceMap config={geofenceConfig} userLocation={null} allStaffLocations={staffPins} height="420px" />
+          <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+            <span>Titik hijau: Pusat Geofence {geofenceConfig.schoolName}</span>
+            <span>Pin biru/oranye: Titik absensi live guru & staf hari ini</span>
+          </div>
+        </div>
+        <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+              <Activity className="w-4 h-4 text-emerald-600" />
+              Aktivitas Masuk Hari Ini
+            </h3>
+            <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{todayRecords.length} Kehadiran</span>
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-3 max-h-[460px] pr-1">
+            {todayRecords.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-xs">Belum ada guru atau pegawai yang melakukan absensi hari ini.</div>
+            ) : (
+              todayRecords.map((rec) => (
+                <div key={rec.id} className="p-3 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/80 transition space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img src={rec.checkInPhoto} alt={rec.userName} className="w-10 h-10 rounded-xl object-cover border border-emerald-500 shadow-xs" />
+                      <div>
+                        <p className="font-bold text-slate-900 text-xs leading-tight">{rec.userName}</p>
+                        <p className="text-[10px] text-slate-500">{rec.userRole} • NIP: {rec.nip}</p>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${rec.checkInStatus === 'TEPAT_WAKTU' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {rec.checkInStatus === 'TEPAT_WAKTU' ? 'Tepat Waktu' : 'Terlambat'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-600 pt-1 border-t border-slate-200/60">
+                    <span className="flex items-center gap-1 font-mono font-bold text-slate-800">
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      {rec.checkInTime} WIB
+                    </span>
+                    <span className="flex items-center gap-1 text-emerald-700 font-semibold">
+                      <ShieldCheck className="w-3 h-3" />
+                      {rec.checkInLocation.distanceMeters}m (Lolos GPS)
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ===== AKTIVASI TOMBOL ABSEN =====
+  const renderAktivasiAbsen = () => {
+    const terlambatUsers = staffUsers.filter(u => {
+      const record = records.find(r => r.userId === u.id.toString() && r.date === todayStr);
+      return !record || record.checkInStatus === 'TERLAMBAT';
+    });
+
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-4">
+          <AlertCircle className="w-5 h-5 text-amber-600" />
+          Aktivasi Tombol Absen (Untuk Terlambat)
+        </h3>
+        <p className="text-sm text-slate-600 mb-4">
+          Daftar guru/pegawai yang terlambat hari ini. Klik <strong>"Aktivasi"</strong> untuk membuka kunci tombol absen mereka.
+        </p>
+        {terlambatUsers.length === 0 ? (
+          <p className="text-slate-400">Semua guru/pegawai tepat waktu hari ini.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-600 font-semibold">
+                <tr>
+                  <th className="p-3 text-left">Nama</th>
+                  <th className="p-3 text-left">NIP</th>
+                  <th className="p-3 text-left">Status</th>
+                  <th className="p-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {terlambatUsers.map((u) => {
+                  const record = records.find(r => r.userId === u.id.toString() && r.date === todayStr);
+                  return (
+                    <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="p-3 font-medium">{u.name}</td>
+                      <td className="p-3 text-xs">{u.nip}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${record ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
+                          {record ? 'Terlambat' : 'Belum Absen'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <button
+                          onClick={() => handleAktivasiAbsen(u.id.toString())}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-xl text-xs font-bold transition"
+                        >
+                          Aktivasi
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ===== IZIN TIDAK MASUK =====
+  const renderIzinTidakMasuk = () => {
+    const filtered = izinRequests.filter(req => req.type === 'tidak_masuk');
+
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-4">
+          <FileText className="w-5 h-5 text-blue-600" />
+          Izin Tidak Masuk Sekolah
+        </h3>
+        <p className="text-sm text-slate-600 mb-4">Daftar permohonan izin tidak masuk sekolah (sakit, dinas, dll) dengan bukti upload.</p>
+
+        {izinLoading ? (
+          <p className="text-center text-slate-500">Memuat data...</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-center text-slate-400">Tidak ada permohonan izin tidak masuk.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-600 font-semibold">
+                <tr>
+                  <th className="p-3 text-left">Nama</th>
+                  <th className="p-3 text-left">NIP</th>
+                  <th className="p-3 text-left">Tanggal</th>
+                  <th className="p-3 text-left">Alasan</th>
+                  <th className="p-3 text-left">Bukti</th>
+                  <th className="p-3 text-left">Status</th>
+                  <th className="p-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((req) => (
+                  <tr key={req.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="p-3 font-medium">{req.user_name}</td>
+                    <td className="p-3 text-xs">{req.user_nip}</td>
+                    <td className="p-3 text-xs">{req.date}</td>
+                    <td className="p-3 text-xs max-w-xs truncate">{req.reason}</td>
+                    <td className="p-3 text-center">
+                      {req.attachment ? (
+                        <button
+                          onClick={() => openAttachment(req.attachment!)}
+                          className="text-blue-600 hover:text-blue-800 text-xs font-semibold underline flex items-center gap-1"
+                        >
+                          <FileText className="w-3 h-3" />
+                          Lihat
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-xs">Tidak ada</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : req.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {req.status === 'pending' ? '⏳ Menunggu' : req.status === 'approved' ? '✅ Disetujui' : '❌ Ditolak'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      {req.status === 'pending' && (
+                        <div className="flex justify-center gap-2">
+                          <button onClick={() => handleApproveIzin(req.id)} className="text-green-600 hover:text-green-800 p-1" title="Setujui">
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleRejectIzin(req.id)} className="text-red-600 hover:text-red-800 p-1" title="Tolak">
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ===== PENGUMUMAN =====
+  const renderPengumuman = () => (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-4">
+        <Megaphone className="w-5 h-5 text-emerald-600" />
+        Pengumuman Sekolah
+      </h3>
+
+      <div className="bg-slate-50 rounded-xl p-4 mb-6">
+        <h4 className="font-semibold text-slate-700 mb-2">Tambah Pengumuman Baru</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input
+            type="text"
+            placeholder="Judul"
+            value={newAnnouncement.title}
+            onChange={(e) => setNewAnnouncement(prev => ({ ...prev, title: e.target.value }))}
+            className="p-2 border rounded-xl"
+          />
+          <input
+            type="text"
+            placeholder="Konten"
+            value={newAnnouncement.content}
+            onChange={(e) => setNewAnnouncement(prev => ({ ...prev, content: e.target.value }))}
+            className="p-2 border rounded-xl"
+          />
+          <input
+            type="date"
+            value={newAnnouncement.date}
+            onChange={(e) => setNewAnnouncement(prev => ({ ...prev, date: e.target.value }))}
+            className="p-2 border rounded-xl"
+          />
+        </div>
+        <button
+          onClick={handleAddAnnouncement}
+          className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold transition text-sm flex items-center gap-1"
+        >
+          <Plus className="w-4 h-4" />
+          Tambah Pengumuman
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {announcements.length === 0 ? (
+          <p className="text-slate-400">Belum ada pengumuman.</p>
+        ) : (
+          announcements.map((ann) => (
+            <div key={ann.id} className={`border rounded-xl p-4 ${ann.isPinned ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'}`}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                    {ann.title}
+                    {ann.isPinned && <span className="text-xs bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full">📌 PIN</span>}
+                  </h4>
+                  <p className="text-sm text-slate-600 mt-1">{ann.content}</p>
+                  <p className="text-xs text-slate-400 mt-1">{ann.date}</p>
+                </div>
+                <button onClick={() => handleDeleteAnnouncement(ann.id)} className="text-red-500 hover:text-red-700 p-1">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  // ===== RENDER UTAMA =====
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Sub-Navigation Tabs (atas) */}
+      <div className="flex items-center gap-1.5 p-1.5 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+        {[
+          { id: 'monitoring', icon: <Activity className="w-4 h-4" />, label: 'Monitoring Real-Time & Peta' },
+          { id: 'laporan', icon: <FileSpreadsheet className="w-4 h-4" />, label: 'Laporan Rekap Excel' },
+          { id: 'pengguna', icon: <Users className="w-4 h-4" />, label: 'Kelola Guru & Pegawai' },
+          { id: 'geofence', icon: <Settings className="w-4 h-4" />, label: 'Pengaturan Geofencing TK' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
       {renderTabContent()}
-
-      {/* ================= MODALS ACCESSED VIA ACTION BUTTONS ================= */}
-      {/* 1. Master Data Guru & Pegawai Modal */}
-      <MasterDataModal
-        isOpen={isMasterDataOpen}
-        onClose={() => setIsMasterDataOpen(false)}
-        users={users}
-        onAddUser={onAddUser}
-        onUpdateUser={onUpdateUser}
-        onDeleteUser={onDeleteUser}
-        onImportUsers={onImportUsers}
-      />
-
-      {/* 2. Jadwal Sentra & KBM Modal */}
-      <JadwalSentraModal
-        isOpen={isJadwalSentraOpen}
-        onClose={() => setIsJadwalSentraOpen(false)}
-      />
-
-      {/* 3. Informasi Umum / Pengumuman Sekolah Modal */}
-      <InformasiUmumModal
-        isOpen={isInformasiUmumOpen}
-        onClose={() => setIsInformasiUmumOpen(false)}
-      />
-
-      {/* 4. Pengaturan Absensi / Geofence GPS Modal */}
-      <PengaturanAbsensiModal
-        isOpen={isPengaturanAbsensiOpen}
-        onClose={() => setIsPengaturanAbsensiOpen(false)}
-        config={geofenceConfig}
-        onSaveConfig={onSaveGeofenceConfig}
-      />
-
-      {/* 5. Profil TKK Inviolata Ruteng Modal */}
-      <ProfilSekolahModal
-        isOpen={isProfilSekolahOpen}
-        onClose={() => setIsProfilSekolahOpen(false)}
-      />
-
-      {/* 6. Dispensasi & Buka Kunci Presensi Modal */}
-      <PermohonanBukaKunciModal
-        isOpen={isDispensasiOpen}
-        onClose={() => setIsDispensasiOpen(false)}
-        requests={unlockRequests}
-        onApproveRequest={handleApproveUnlock}
-        onRejectRequest={handleRejectUnlock}
-        currentUser={users.find((u) => u.role === 'ADMIN') || users[0]}
-      />
-
-      {/* 7. Selfie Detail Preview Modal */}
-      <SelfieDetailModal
-        record={selectedSelfieRecord}
-        onClose={() => setSelectedSelfieRecord(null)}
-      />
     </div>
   );
 };

@@ -7,7 +7,6 @@ import { MobileAbsenKuHome } from './components/absenku/MobileAbsenKuHome';
 import { MobileStaffDashboard } from './components/absenku/MobileStaffDashboard';
 import { User, AttendanceRecord, GeofenceConfig } from './types';
 
-// Data dummy sebagai fallback jika API gagal atau users kosong
 const DUMMY_USERS: User[] = [
   {
     id: 1,
@@ -50,19 +49,17 @@ const DEFAULT_GEOFENCE: GeofenceConfig = {
 };
 
 function App() {
-  // State utama
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminTab, setAdminTab] = useState<
-    'monitoring' | 'laporan' | 'pengguna' | 'geofence' | 'izin_terlambat' | 'izin_tidak_masuk' | 'pengumuman' | 'profile'
+    'monitoring' | 'laporan' | 'pengguna' | 'geofence' | 'aktivasi_absen' | 'izin_tidak_masuk' | 'pengumuman' | 'profile'
   >('monitoring');
   const [geofenceConfig, setGeofenceConfig] = useState<GeofenceConfig>(DEFAULT_GEOFENCE);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Deteksi perangkat mobile menggunakan matchMedia (lebih akurat)
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 768px)');
     setIsMobile(mediaQuery.matches);
@@ -71,7 +68,6 @@ function App() {
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
 
-  // 1. Load user dari localStorage dan fetch geofence config
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -81,7 +77,6 @@ function App() {
         localStorage.removeItem('user');
       }
     }
-    // Fetch geofence config dari database
     const fetchGeofence = async () => {
       try {
         const res = await fetch('/api/geofence');
@@ -99,7 +94,6 @@ function App() {
     setIsInitialized(true);
   }, []);
 
-  // 2. Fetch users dan records secara berurutan
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
@@ -109,7 +103,6 @@ function App() {
     fetchData();
   }, [user]);
 
-  // ---- Fungsi fetch data ----
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/users');
@@ -164,7 +157,6 @@ function App() {
     }
   };
 
-  // ---- Login / Logout ----
   const handleLogin = (selectedUser: User) => {
     setUser(selectedUser);
     localStorage.setItem('user', JSON.stringify(selectedUser));
@@ -181,7 +173,6 @@ function App() {
     await fetchRecords();
   };
 
-  // ---- CRUD Users ----
   const handleAddUser = async (newUser: any) => {
     try {
       const res = await fetch('/api/users', {
@@ -279,7 +270,6 @@ function App() {
     }
   };
 
-  // ---- Render ----
   if (loading || !isInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -296,7 +286,6 @@ function App() {
     return <LoginPanel users={loginUsers} onLogin={handleLogin} />;
   }
 
-  // ---- Deteksi Admin ----
   const userRole = user.role?.toLowerCase() || '';
   const isAdmin =
     userRole === 'admin' ||
@@ -305,7 +294,6 @@ function App() {
     user.role === 'Administrator' ||
     user.role === 'Administrator Utama';
 
-  // ---- RENDER MOBILE ----
   if (isMobile) {
     if (isAdmin) {
       return (
@@ -326,7 +314,6 @@ function App() {
         />
       );
     } else {
-      // Pastikan MobileStaffDashboard menerima props yang sama seperti StaffDashboard
       return (
         <MobileStaffDashboard
           user={user}
@@ -339,7 +326,6 @@ function App() {
     }
   }
 
-  // ---- RENDER DESKTOP ----
   if (isAdmin) {
     return (
       <MainLayout
@@ -359,6 +345,7 @@ function App() {
           onImportUsers={handleImportUsers}
           activeTab={adminTab}
           onTabChange={setAdminTab}
+          onRefresh={handleRefresh}
         />
       </MainLayout>
     );
