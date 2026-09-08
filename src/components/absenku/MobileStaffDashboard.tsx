@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   School,
   LayoutDashboard,
@@ -33,23 +33,25 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
     type: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [hasCheckedIn, setHasCheckedIn] = useState(false);
+  const [hasCheckedOut, setHasCheckedOut] = useState(false);
+  const [todayRecord, setTodayRecord] = useState<any>(null);
 
   const today = new Date().toISOString().split('T')[0];
-  const todayRecord = records.find((r) => r.userId === user.id?.toString() && r.date === today);
-  const hasCheckedIn = !!todayRecord?.checkInTime;
-  const hasCheckedOut = !!todayRecord?.checkOutTime;
 
-  const menuItems = [
-    { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard Presensi Saya', tabId: 'dashboard' },
-    { icon: <Camera className="w-5 h-5" />, label: 'Aplikasi Klik & Dispensasi', tabId: 'dispensasi' },
-    { icon: <Bell className="w-5 h-5" />, label: 'Pengumuman Sekolah', tabId: 'pengumuman' },
-    { icon: <Lock className="w-5 h-5" />, label: 'Profil & Password', tabId: 'profil' },
-  ];
-
-  const handleMenuClick = (tabId: string) => {
-    // Untuk sementara hanya close sidebar
-    setIsSidebarOpen(false);
-  };
+  useEffect(() => {
+    const found = records.find(
+      (r) => r.userId === user.id?.toString() && r.date === today
+    );
+    setTodayRecord(found);
+    if (found) {
+      setHasCheckedIn(!!found.checkInTime);
+      setHasCheckedOut(!!found.checkOutTime);
+    } else {
+      setHasCheckedIn(false);
+      setHasCheckedOut(false);
+    }
+  }, [records, user, today]);
 
   const handlePresensi = async (type: 'masuk' | 'pulang') => {
     setIsLoading(true);
@@ -104,6 +106,22 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
           type: 'success',
         });
         await onRefresh();
+        // Update state setelah refresh
+        const updated = await fetch('/api/attendance');
+        const data = await updated.json();
+        if (data.success) {
+          const found = data.data.find(
+            (r: any) => r.user_id === user.id && r.attendance_date === dateStr
+          );
+          if (found) {
+            setHasCheckedIn(!!found.check_in_time);
+            setHasCheckedOut(!!found.check_out_time);
+            setTodayRecord({
+              checkInTime: found.check_in_time ? new Date(found.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : null,
+              checkOutTime: found.check_out_time ? new Date(found.check_out_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : null,
+            });
+          }
+        }
       } else {
         setStatusMessage({
           text: `❌ Gagal: ${result.error || result.detail || 'Terjadi kesalahan'}`,
@@ -118,6 +136,19 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const menuItems = [
+    { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard Presensi Saya', tabId: 'dashboard' },
+    { icon: <Camera className="w-5 h-5" />, label: 'Aplikasi Klik & Dispensasi', tabId: 'dispensasi' },
+    { icon: <Bell className="w-5 h-5" />, label: 'Pengumuman Sekolah', tabId: 'pengumuman' },
+    { icon: <Lock className="w-5 h-5" />, label: 'Profil & Password', tabId: 'profil' },
+  ];
+
+  const handleMenuClick = (tabId: string) => {
+    setIsSidebarOpen(false);
+    // Untuk sementara, kita hanya tutup sidebar
+    // Nanti bisa dikembangkan dengan state untuk mengganti konten
   };
 
   return (
@@ -239,9 +270,9 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
           <div className="flex gap-2">
             <button
               onClick={() => handlePresensi('masuk')}
-              disabled={isLoading || hasCheckedIn}
+              disabled={isLoading || hasCheckedIn || hasCheckedOut}
               className={`flex-1 py-3 rounded-xl font-bold text-sm transition ${
-                hasCheckedIn
+                hasCheckedIn || hasCheckedOut
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white'
               }`}
@@ -299,7 +330,6 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
           </div>
         </a>
 
-        {/* Keluar */}
         <button
           onClick={onLogout}
           className="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition"
