@@ -91,16 +91,12 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
     context?.drawImage(videoRef.current, 0, 0);
     const photoData = canvas.toDataURL('image/jpeg', 0.8);
     setPhoto(photoData);
-    // Kirim ke parent
     if (location) {
       onCapture(photoData, location.lat, location.lng);
     } else {
       onCapture(photoData, 0, 0);
     }
-    // Tutup modal setelah capture
-    setTimeout(() => {
-      onClose();
-    }, 500);
+    setTimeout(() => onClose(), 500);
   };
 
   if (!isOpen) return null;
@@ -112,7 +108,7 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
             <Camera className="w-5 h-5 text-emerald-600" />
-            Kamera Presensi
+            Kamera Presensi TKK Inviolata
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-6 h-6" />
@@ -121,10 +117,22 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
 
         {/* Body */}
         <div className="p-4 space-y-4">
+          {/* Subtitle */}
+          <p className="text-sm text-gray-500">Selfie Wajah & Validasi GPS Otomatis</p>
+
           {/* Informasi User */}
           <div className="bg-gray-50 rounded-xl p-3 text-sm">
             <p className="font-semibold text-gray-700">{user?.name || 'User'}</p>
             <p className="text-gray-500 text-xs">{user?.role} • NIP: {user?.nip || '-'}</p>
+          </div>
+
+          {/* Pilihan Jenis Presensi */}
+          <div className="bg-blue-50 rounded-xl p-3 text-sm">
+            <p className="font-semibold text-blue-800">PILIH JENIS PRESENSI:</p>
+            <div className="flex gap-3 mt-2">
+              <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold">Presensi Masuk</span>
+              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold">Presensi Pulang</span>
+            </div>
           </div>
 
           {/* Video Kamera */}
@@ -170,6 +178,27 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
                 '⏳ Mengambil lokasi...'
               )}
             </span>
+          </div>
+
+          {/* Informasi Waktu */}
+          <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-600">
+            <p>🕒 12:00:00 - 12:30:00 WITA</p>
+            <p className="text-red-600 font-semibold">⏰ LEWAT JAM PULANG</p>
+          </div>
+
+          {/* Lokasi Sekolah */}
+          <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-800">
+            <p className="font-semibold">📍 Di Luar Area</p>
+            <p className="text-xs">Maksimal radius 20 meter dari sekolah</p>
+          </div>
+
+          {/* Layanan Dispensasi */}
+          <div className="bg-purple-50 rounded-xl p-3 text-sm text-purple-800">
+            <p className="font-semibold">📋 Layanan Dispensasi Admin</p>
+            <p className="text-xs">Melewati batas ketentuan. Silakan ajukan ke Admin Utama (Sr. Maria Inviolata, S.Pd.).</p>
+            <button className="mt-2 bg-purple-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-700 transition">
+              Dispensasi Keterlambatan
+            </button>
           </div>
 
           {/* Tombol */}
