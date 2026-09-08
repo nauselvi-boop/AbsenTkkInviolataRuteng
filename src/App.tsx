@@ -62,14 +62,13 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Deteksi perangkat mobile
+  // Deteksi perangkat mobile menggunakan matchMedia (lebih akurat)
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    setIsMobile(mediaQuery.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
   }, []);
 
   // 1. Load user dari localStorage dan fetch geofence config
@@ -313,13 +312,17 @@ function App() {
         <MobileAbsenKuHome
           user={user}
           onLogout={handleLogout}
-          onNavigate={(tab) => {
-            if (tab === 'desktop') {
-              window.location.href = window.location.origin + '?desktop=true';
-            } else {
-              setAdminTab(tab as any);
-            }
-          }}
+          onNavigate={setAdminTab}
+          users={users}
+          records={records}
+          geofenceConfig={geofenceConfig}
+          onSaveGeofenceConfig={handleSaveGeofence}
+          onAddUser={handleAddUser}
+          onUpdateUser={handleUpdateUser}
+          onDeleteUser={handleDeleteUser}
+          onImportUsers={handleImportUsers}
+          adminTab={adminTab}
+          setAdminTab={setAdminTab}
         />
       );
     } else {

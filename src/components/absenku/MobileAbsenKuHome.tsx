@@ -13,22 +13,44 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
+import { AdminDashboard } from '../AdminDashboard';
+import { User, AttendanceRecord, GeofenceConfig } from '../../types';
 
 interface MobileAbsenKuHomeProps {
   user: any;
   onLogout: () => void;
   onNavigate?: (tab: string) => void;
+  // Props untuk AdminDashboard
+  users: User[];
+  records: AttendanceRecord[];
+  geofenceConfig: GeofenceConfig;
+  onSaveGeofenceConfig: (config: GeofenceConfig) => void;
+  onAddUser: (user: Omit<User, 'id' | 'createdAt'>) => void;
+  onUpdateUser: (user: User) => void;
+  onDeleteUser: (userId: string) => void;
+  onImportUsers: (newUsers: Omit<User, 'id' | 'createdAt'>[]) => void;
+  adminTab: 'monitoring' | 'laporan' | 'pengguna' | 'geofence' | 'izin_terlambat' | 'izin_tidak_masuk' | 'pengumuman' | 'profile';
+  setAdminTab: (tab: any) => void;
 }
 
 export const MobileAbsenKuHome: React.FC<MobileAbsenKuHomeProps> = ({
   user,
   onLogout,
   onNavigate,
+  users,
+  records,
+  geofenceConfig,
+  onSaveGeofenceConfig,
+  onAddUser,
+  onUpdateUser,
+  onDeleteUser,
+  onImportUsers,
+  adminTab,
+  setAdminTab,
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isIzinOpen, setIsIzinOpen] = useState(false);
 
-  // Daftar menu admin
   const menuItems = [
     { icon: <FileSpreadsheet className="w-5 h-5" />, label: 'Rekap Absensi Excel', tabId: 'laporan' },
     { icon: <Users className="w-5 h-5" />, label: 'Data Guru & Pegawai', tabId: 'pengguna' },
@@ -47,9 +69,8 @@ export const MobileAbsenKuHome: React.FC<MobileAbsenKuHomeProps> = ({
   ];
 
   const handleMenuClick = (tabId: string) => {
-    if (onNavigate) {
-      onNavigate(tabId);
-    }
+    setAdminTab(tabId as any);
+    if (onNavigate) onNavigate(tabId);
     setIsSidebarOpen(false);
   };
 
@@ -166,72 +187,20 @@ export const MobileAbsenKuHome: React.FC<MobileAbsenKuHomeProps> = ({
         </div>
       </div>
 
-      {/* KONTEN UTAMA */}
-      <div className="flex-1 p-4 space-y-4">
-        <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
-          <h2 className="text-xl font-bold text-gray-800">Dashboard Admin Utama</h2>
-          <p className="text-sm text-gray-500 mt-1">Hak Akses: {user?.role || 'Admin'} (Penuh)</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {menuItems.map((item) => {
-            if (item.isDropdown) {
-              return (
-                <div key={item.label} className="col-span-2">
-                  <button
-                    onClick={() => setIsIzinOpen(!isIzinOpen)}
-                    className="w-full bg-white rounded-2xl shadow-sm p-4 text-left hover:shadow-md transition flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      {item.icon}
-                      <span className="font-semibold text-gray-700">{item.label}</span>
-                    </div>
-                    {isIzinOpen ? (
-                      <ChevronDown className="w-4 h-4 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-gray-500" />
-                    )}
-                  </button>
-                  {isIzinOpen && (
-                    <div className="mt-2 space-y-2">
-                      {item.subItems.map((sub) => (
-                        <button
-                          key={sub.tabId}
-                          onClick={() => handleMenuClick(sub.tabId)}
-                          className="w-full bg-white/80 rounded-xl p-3 text-left hover:bg-white transition flex items-center gap-2 ml-4"
-                        >
-                          <span className="text-emerald-500">▸</span>
-                          <span className="text-sm text-gray-700">{sub.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            return (
-              <button
-                key={item.tabId}
-                onClick={() => handleMenuClick(item.tabId)}
-                className="bg-white rounded-2xl shadow-sm p-4 text-left hover:shadow-md transition flex items-center gap-2"
-              >
-                {item.icon}
-                <span className="font-semibold text-gray-700">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          onClick={onLogout}
-          className="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition"
-        >
-          Keluar
-        </button>
-
-        <p className="text-center text-[10px] text-slate-400 mt-4">
-          Sistem Informasi Presensi Online • TKK Inviolata Ruteng
-        </p>
+      {/* KONTEN UTAMA (AdminDashboard) */}
+      <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+        <AdminDashboard
+          users={users}
+          records={records}
+          geofenceConfig={geofenceConfig}
+          onSaveGeofenceConfig={onSaveGeofenceConfig}
+          onAddUser={onAddUser}
+          onUpdateUser={onUpdateUser}
+          onDeleteUser={onDeleteUser}
+          onImportUsers={onImportUsers}
+          activeTab={adminTab}
+          onTabChange={setAdminTab}
+        />
       </div>
     </div>
   );
