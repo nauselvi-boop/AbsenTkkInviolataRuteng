@@ -24,7 +24,6 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
 
-  // Buka kamera saat modal terbuka
   useEffect(() => {
     if (isOpen) {
       startCamera();
@@ -126,7 +125,7 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
             <p className="text-gray-500 text-xs">{user?.role} • NIP: {user?.nip || '-'}</p>
           </div>
 
-          {/* Pilihan Jenis Presensi (static, sesuai screenshot) */}
+          {/* Pilihan Jenis Presensi */}
           <div className="bg-blue-50 rounded-xl p-3 text-sm">
             <p className="font-semibold text-blue-800">PILIH JENIS PRESENSI:</p>
             <div className="flex gap-3 mt-2">
@@ -165,7 +164,6 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
             )}
           </div>
 
-          {/* Canvas tersembunyi */}
           <canvas ref={canvasRef} style={{ display: 'none' }} />
 
           {/* Status Lokasi */}
@@ -180,7 +178,7 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
             </span>
           </div>
 
-          {/* Informasi Waktu & Radius */}
+          {/* Waktu & Radius */}
           <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1">
             <p className="text-gray-600">🕒 12:00:00 - 12:30:00 WITA</p>
             <p className="text-red-600 font-semibold">⏰ LEWAT JAM PULANG</p>
