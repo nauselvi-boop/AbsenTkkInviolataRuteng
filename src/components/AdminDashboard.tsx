@@ -25,6 +25,15 @@ import {
   Calendar,
   UserCog,
   Award,
+  LogOut,
+  LayoutDashboard,
+  BarChart3,
+  PersonStanding,
+  MapPinned,
+  ToggleRight,
+  MessageSquareWarning,
+  Bell,
+  UserCircle,
 } from 'lucide-react';
 
 interface IzinRequest {
@@ -267,11 +276,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const renderMonitoring = () => {
     const adminUser = users.find(u => u.role === 'ADMIN');
 
+    // Data untuk grafik sederhana (contoh)
+    const weeklyData = [
+      { day: 'Sen', count: 12 },
+      { day: 'Sel', count: 15 },
+      { day: 'Rab', count: 10 },
+      { day: 'Kam', count: 14 },
+      { day: 'Jum', count: 8 },
+      { day: 'Sab', count: 0 },
+    ];
+    const maxCount = Math.max(...weeklyData.map(d => d.count), 1);
+
     return (
       <div className="space-y-6">
-        {/* Grid 3 Kartu Utama */}
+        {/* Header Section (Biru) */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Dashboard Admin</h1>
+              <p className="text-blue-100 text-sm mt-1">Monitoring Kehadiran Guru & Pegawai TKK Inviolata</p>
+            </div>
+            <div className="mt-4 md:mt-0 flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-lg">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-blue-100">Hari Ini</p>
+                <p className="font-bold">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3 Cards Utama */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
             <div className="flex items-start gap-4">
               <div className="p-3 bg-purple-100 rounded-full">
                 <Users className="w-8 h-8 text-purple-600" />
@@ -286,7 +325,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
             <div className="flex items-start gap-4">
               <div className="p-3 bg-emerald-100 rounded-full">
                 <FileSpreadsheet className="w-8 h-8 text-emerald-600" />
@@ -301,7 +340,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
             <div className="flex items-start gap-4">
               <div className="p-3 bg-indigo-100 rounded-full">
                 <MapPin className="w-8 h-8 text-indigo-600" />
@@ -317,64 +356,84 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
 
-        {/* Kartu Admin, Jadwal, Pengumuman */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h4 className="font-bold text-gray-800 flex items-center gap-2">
-              <Award className="w-5 h-5 text-emerald-600" />
-              Admin Utama
-            </h4>
-            <p className="text-sm text-gray-700 mt-2 font-semibold">{adminUser?.name || 'Sr. Maria Inviolata, S.Pd.'}</p>
-            <p className="text-xs text-gray-500">{adminUser?.email || 'admin@tkkinviolata.sch.id'}</p>
+        {/* Main Content: Tracking & Report */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column (2/3) - Tracking Lokasi */}
+          <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2 mb-4">
+              <MapPin className="w-5 h-5 text-emerald-600" />
+              Tracking Lokasi Guru TKK Inviolata
+            </h3>
+
+            <div className="bg-gray-50 p-3 rounded-xl mb-4">
+              <p className="font-semibold text-gray-700 text-sm">
+                Nama: Ibu Yuliana Nardi, S.Pd. (Guru Kelompok A (TK-A))
+              </p>
+              <p className="text-xs text-gray-500">Tugas / Sentra: Guru Kelompok A (TK-A)</p>
+              <p className="text-xs text-emerald-600 font-medium">Waktu Presensi: 12.06.51 WITA (Tepat Waktu)</p>
+            </div>
+
+            <div className="h-[350px] rounded-xl overflow-hidden border border-slate-200">
+              <GeofenceMap
+                config={geofenceConfig}
+                userLocation={null}
+                allStaffLocations={staffPins}
+                height="100%"
+              />
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-2">
+              <span>Radius Aman: {geofenceConfig.radiusMeters}m dari Gedung TKK</span>
+              <span>Leaflet | © OpenStreetMap</span>
+            </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h4 className="font-bold text-gray-800 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-blue-600" />
-              Jadwal Sentra & KBM
-            </h4>
-            <p className="text-sm text-gray-600 mt-2">Sentra Balok, Alam, Seni & Rohani</p>
-            <p className="text-xs text-gray-400 mt-1">Kurikulum Merdeka</p>
-          </div>
+          {/* Right Column (1/3) - Report Absensi & Info */}
+          <div className="space-y-6">
+            {/* Report Absensi Weekly */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+              <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2 mb-4">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+                Report Absensi Weekly
+              </h3>
+              <div className="flex items-end justify-between h-40 gap-2">
+                {weeklyData.map((item, idx) => (
+                  <div key={idx} className="flex flex-col items-center gap-1 flex-1">
+                    <div className="w-full bg-blue-200 rounded-t-lg" style={{ height: `${(item.count / maxCount) * 100}%` }} />
+                    <span className="text-xs text-gray-500">{item.day}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h4 className="font-bold text-gray-800 flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-amber-600" />
-              Pengumuman Sekolah
-            </h4>
-            <p className="text-sm text-gray-600 mt-2">Agenda Kegiatan & Informasi TKK</p>
-            <button onClick={() => onTabChange('pengumuman')} className="mt-2 text-sm text-emerald-600 font-semibold hover:underline">
-              Baca →
-            </button>
-          </div>
-        </div>
+            {/* Kartu Admin, Jadwal, Pengumuman */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+              <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                <Award className="w-5 h-5 text-emerald-600" />
+                Admin Utama
+              </h4>
+              <p className="text-sm text-gray-700 mt-2 font-semibold">{adminUser?.name || 'Sr. Maria Inviolata, S.Pd.'}</p>
+              <p className="text-xs text-gray-500">{adminUser?.email || 'admin@tkkinviolata.sch.id'}</p>
+            </div>
 
-        {/* Tracking Lokasi & Peta */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2 mb-4">
-            <MapPin className="w-5 h-5 text-emerald-600" />
-            Tracking Lokasi Guru TKK Inviolata
-          </h3>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+              <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-blue-600" />
+                Jadwal Sentra & KBM
+              </h4>
+              <p className="text-sm text-gray-600 mt-2">Sentra Balok, Alam, Seni & Rohani</p>
+              <p className="text-xs text-gray-400 mt-1">Kurikulum Merdeka</p>
+            </div>
 
-          <div className="bg-gray-50 p-3 rounded-xl mb-4">
-            <p className="font-semibold text-gray-700 text-sm">
-              Nama: Ibu Yuliana Nardi, S.Pd. (Guru Kelompok A (TK-A))
-            </p>
-            <p className="text-xs text-gray-500">Tugas / Sentra: Guru Kelompok A (TK-A)</p>
-            <p className="text-xs text-emerald-600 font-medium">Waktu Presensi: 12.06.51 WITA (Tepat Waktu)</p>
-          </div>
-
-          <div className="h-[300px] rounded-xl overflow-hidden border border-slate-200">
-            <GeofenceMap
-              config={geofenceConfig}
-              userLocation={null}
-              allStaffLocations={staffPins}
-              height="100%"
-            />
-          </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-2">
-            <span>Radius Aman: {geofenceConfig.radiusMeters}m dari Gedung TKK</span>
-            <span>Leaflet | © OpenStreetMap</span>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+              <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                <Megaphone className="w-5 h-5 text-amber-600" />
+                Pengumuman Sekolah
+              </h4>
+              <p className="text-sm text-gray-600 mt-2">Agenda Kegiatan & Informasi TKK</p>
+              <button onClick={() => onTabChange('pengumuman')} className="mt-2 text-sm text-emerald-600 font-semibold hover:underline">
+                Baca →
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -587,31 +646,64 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // ===== RENDER UTAMA =====
   return (
-    <div className="space-y-6">
-      {/* Sub-Navigation Tabs (atas) */}
-      <div className="flex items-center gap-1.5 p-1.5 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
-        {[
-          { id: 'monitoring', icon: <Activity className="w-4 h-4" />, label: 'Monitoring Real-Time & Peta' },
-          { id: 'laporan', icon: <FileSpreadsheet className="w-4 h-4" />, label: 'Laporan Rekap Excel' },
-          { id: 'pengguna', icon: <Users className="w-4 h-4" />, label: 'Kelola Guru & Pegawai' },
-          { id: 'geofence', icon: <Settings className="w-4 h-4" />, label: 'Pengaturan Geofencing TK' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            {tab.icon}
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
+    <div className="flex min-h-screen bg-gray-50">
+      {/* SIDEBAR */}
+      <aside className="w-64 bg-[#1e3a8a] text-white flex flex-col fixed h-full z-20">
+        {/* Logo */}
+        <div className="p-6 flex items-center gap-3">
+          <div className="bg-white/20 p-2 rounded-lg">
+            <ShieldCheck className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">absenKU</h1>
+            <p className="text-xs text-blue-200">TKK Inviolata</p>
+          </div>
+        </div>
 
-      {renderTabContent()}
+        {/* Menu */}
+        <nav className="flex-1 px-4 space-y-1 mt-4">
+          {[
+            { id: 'monitoring', label: 'Monitoring', icon: <LayoutDashboard className="w-5 h-5" /> },
+            { id: 'laporan', label: 'Laporan Rekap', icon: <BarChart3 className="w-5 h-5" /> },
+            { id: 'pengguna', label: 'Kelola Guru', icon: <PersonStanding className="w-5 h-5" /> },
+            { id: 'geofence', label: 'Geofencing', icon: <MapPinned className="w-5 h-5" /> },
+            { id: 'aktivasi_absen', label: 'Aktivasi Absen', icon: <ToggleRight className="w-5 h-5" /> },
+            { id: 'izin_tidak_masuk', label: 'Izin Tidak Masuk', icon: <MessageSquareWarning className="w-5 h-5" /> },
+            { id: 'pengumuman', label: 'Pengumuman', icon: <Bell className="w-5 h-5" /> },
+            { id: 'profile', label: 'Profil Admin', icon: <UserCircle className="w-5 h-5" /> },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onTabChange(item.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
+                activeTab === item.id
+                  ? 'bg-white/20 text-white shadow-md'
+                  : 'text-blue-100 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Logout */}
+        <div className="p-4 border-t border-white/10">
+          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-300 hover:bg-red-500/20 hover:text-red-200 transition">
+            <LogOut className="w-5 h-5" />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <main className="flex-1 ml-64 p-8 overflow-y-auto">
+        {/* Header (optional, sudah ada di dalam monitoring) */}
+        <div className="mb-6">
+          {/* Konten dinamis sesuai tab */}
+          {renderTabContent()}
+        </div>
+      </main>
     </div>
   );
 };
