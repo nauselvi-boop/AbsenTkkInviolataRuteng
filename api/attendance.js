@@ -1,6 +1,19 @@
 // api/attendance.js
 import { neon } from '@neondatabase/serverless';
 
+// Fungsi Haversine untuk menghitung jarak (meter) antara dua koordinat
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Radius bumi dalam meter
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -12,7 +25,6 @@ export default async function handler(req, res) {
 
   try {
     const sql = neon(process.env.DATABASE_URL);
-    const today = new Date().toISOString().split('T')[0];
 
     // ---- GET ----
     if (req.method === 'GET') {
@@ -51,26 +63,24 @@ export default async function handler(req, res) {
     // ---- POST ----
     if (req.method === 'POST') {
       const url = new URL(req.url, `http://${req.headers.host}`);
+      
       // Endpoint aktivasi
       if (url.pathname.endsWith('/activate')) {
         const { user_id, date } = req.body;
         if (!user_id || !date) {
           return res.status(400).json({ success: false, error: 'user_id dan date wajib diisi' });
         }
-        // Cek apakah sudah ada record hari ini
         const existing = await sql`
           SELECT id, check_out_time FROM attendance
           WHERE user_id = ${user_id} AND attendance_date = ${date}
         `;
         if (existing.length > 0) {
-          // Jika sudah ada record, hapus check_out_time agar bisa absen lagi
           await sql`
             UPDATE attendance
             SET check_out_time = NULL, updated_at = NOW()
             WHERE id = ${existing[0].id}
           `;
         } else {
-          // Jika belum ada record, buat record kosong dengan status pending
           await sql`
             INSERT INTO attendance (user_id, attendance_date, status, created_at, updated_at)
             VALUES (${user_id}, ${date}, 'pending', NOW(), NOW())
@@ -88,7 +98,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'user_id dan date wajib diisi' });
       }
 
-      // Format date
       let formattedDate = date;
       if (date.includes('T')) {
         formattedDate = date.split('T')[0];
@@ -101,6 +110,26 @@ export default async function handler(req, res) {
       const userCheck = await sql`SELECT id FROM users WHERE id = ${user_id}`;
       if (userCheck.length === 0) {
         return res.status(400).json({ success: false, error: 'User tidak terdaftar' });
+      }
+
+      // ---- Validasi Radius Geofence ----
+      // Ambil konfigurasi geofence terbaru
+      const geoConfig = await sql`
+        SELECT latitude, longitude, radius_meters 
+        FROM geo_fencing_config 
+        ORDER BY id DESC LIMIT 1
+      `;
+      if (geoConfig.length > 0 && lat !== undefined && lng !== undefined) {
+        const { latitude: schoolLat, longitude: schoolLng, radius_meters: maxRadius } = geoConfig[0];
+        const distance = calculateDistance(lat, lng, schoolLat, schoolLng);
+        console.log(`📏 Jarak ke sekolah: ${distance}m (Maks: ${maxRadius}m)`);
+        if (distance > maxRadius) {
+          return res.status(400).json({
+            success: false,
+            error: 'Anda Berada Di Luar Radius TKK Inviolata',
+            detail: `Jarak Anda ${Math.round(distance)}m, maksimal ${maxRadius}m`
+          });
+        }
       }
 
       // Cek existing record

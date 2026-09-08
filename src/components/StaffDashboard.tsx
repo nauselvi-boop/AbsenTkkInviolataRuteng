@@ -186,7 +186,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     });
   };
 
-  // ===== HANDLE PRESENSI =====
+  // ===== HANDLE PRESENSI (dengan validasi radius) =====
   const handlePresensi = async (type: 'masuk' | 'pulang') => {
     setIsLoading(true);
     setStatusMessage({ text: '', type: '' });
@@ -194,7 +194,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     try {
       if (type === 'masuk' && currentTime > inDeadline && !hasCheckedIn) {
         setStatusMessage({
-          text: '⏰ Anda terlambat! Silakan ajukan izin melalui tombol di bawah.',
+          text: '⏰ Anda terlambat! Silakan ajukan izin.',
           type: 'error',
         });
         setShowIzinForm(true);
@@ -203,7 +203,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       }
       if (type === 'pulang' && currentTime > outDeadline && !hasCheckedOut && hasCheckedIn) {
         setStatusMessage({
-          text: '⏰ Anda terlambat pulang! Silakan ajukan izin melalui tombol di bawah.',
+          text: '⏰ Anda terlambat pulang! Silakan ajukan izin.',
           type: 'error',
         });
         setShowIzinForm(true);
@@ -256,8 +256,13 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         if (result.type === 'check-in') setHasCheckedIn(true);
         else if (result.type === 'check-out') setHasCheckedOut(true);
       } else {
+        // Penanganan error khusus radius
+        let errorMsg = result.error || result.detail || 'Terjadi kesalahan';
+        if (errorMsg.toLowerCase().includes('radius') || errorMsg.includes('Luar Radius')) {
+          errorMsg = '⚠️ Anda Berada Di Luar Radius TKK Inviolata';
+        }
         setStatusMessage({
-          text: `❌ Gagal: ${result.error || result.detail || 'Terjadi kesalahan'}`,
+          text: `❌ ${errorMsg}`,
           type: 'error',
         });
       }

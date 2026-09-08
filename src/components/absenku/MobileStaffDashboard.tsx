@@ -41,6 +41,8 @@ interface MobileStaffDashboardProps {
   };
 }
 
+type MenuPage = 'dashboard' | 'dispensasi' | 'pengumuman' | 'profil' | 'keluar';
+
 export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
   user,
   records,
@@ -71,7 +73,7 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'dispensasi' | 'pengumuman' | 'profil' | 'keluar'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<MenuPage>('dashboard');
   const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   // ===== STATE FORM IZIN =====
@@ -184,16 +186,15 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
     });
   };
 
-  // ===== HANDLE PRESENSI =====
+  // ===== HANDLE PRESENSI (dengan validasi radius) =====
   const handlePresensi = async (type: 'masuk' | 'pulang') => {
     setIsLoading(true);
     setStatusMessage({ text: '', type: '' });
 
     try {
-      // Validasi waktu
       if (type === 'masuk' && currentTime > inDeadline && !hasCheckedIn) {
         setStatusMessage({
-          text: '⏰ Anda terlambat! Silakan ajukan izin melalui tombol di bawah.',
+          text: '⏰ Anda terlambat! Silakan ajukan izin.',
           type: 'error',
         });
         setShowIzinForm(true);
@@ -202,7 +203,7 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
       }
       if (type === 'pulang' && currentTime > outDeadline && !hasCheckedOut && hasCheckedIn) {
         setStatusMessage({
-          text: '⏰ Anda terlambat pulang! Silakan ajukan izin melalui tombol di bawah.',
+          text: '⏰ Anda terlambat pulang! Silakan ajukan izin.',
           type: 'error',
         });
         setShowIzinForm(true);
@@ -255,8 +256,13 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
         if (result.type === 'check-in') setHasCheckedIn(true);
         else if (result.type === 'check-out') setHasCheckedOut(true);
       } else {
+        // Penanganan error khusus radius
+        let errorMsg = result.error || result.detail || 'Terjadi kesalahan';
+        if (errorMsg.toLowerCase().includes('radius') || errorMsg.includes('Luar Radius')) {
+          errorMsg = '⚠️ Anda Berada Di Luar Radius TKK Inviolata';
+        }
         setStatusMessage({
-          text: `❌ Gagal: ${result.error || result.detail || 'Terjadi kesalahan'}`,
+          text: `❌ ${errorMsg}`,
           type: 'error',
         });
       }
@@ -369,7 +375,40 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
     }
   };
 
-  // ===== RENDER DASHBOARD (SAMA PERSIS DENGAN DESKTOP) =====
+  // ===== MENU SIDEBAR =====
+  const menuItems = [
+    { id: 'dashboard' as MenuPage, icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard Presensi Saya' },
+    { id: 'dispensasi' as MenuPage, icon: <Camera className="w-4 h-4" />, label: 'Aplikasi Klik & Dispensasi' },
+    { id: 'pengumuman' as MenuPage, icon: <Bell className="w-4 h-4" />, label: 'Pengumuman Sekolah' },
+    { id: 'profil' as MenuPage, icon: <Lock className="w-4 h-4" />, label: 'Profil & Password' },
+  ];
+
+  const handleMenuClick = (page: MenuPage) => {
+    if (page === 'keluar') {
+      onLogout();
+      return;
+    }
+    setCurrentPage(page);
+    setIsSidebarOpen(false);
+  };
+
+  // ===== RENDER KONTEN =====
+  const renderContent = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return renderDashboard();
+      case 'dispensasi':
+        return renderDispensasi();
+      case 'pengumuman':
+        return renderPengumuman();
+      case 'profil':
+        return renderProfil();
+      default:
+        return renderDashboard();
+    }
+  };
+
+  // ===== DASHBOARD =====
   const renderDashboard = () => {
     const lat = geofenceConfig.latitude;
     const lng = geofenceConfig.longitude;
@@ -644,7 +683,7 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
     );
   };
 
-  // ===== RENDER DISPENSASI =====
+  // ===== DISPENSASI =====
   const renderDispensasi = () => (
     <div className="bg-white rounded-2xl shadow-md p-6 space-y-4">
       <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -728,7 +767,7 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
     </div>
   );
 
-  // ===== RENDER PENGUMUMAN =====
+  // ===== PENGUMUMAN =====
   const renderPengumuman = () => (
     <div className="bg-white rounded-2xl shadow-md p-6 space-y-4">
       <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -752,7 +791,7 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
     </div>
   );
 
-  // ===== RENDER PROFIL =====
+  // ===== PROFIL =====
   const renderProfil = () => (
     <div className="bg-white rounded-2xl shadow-md p-6 space-y-4">
       <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -787,39 +826,6 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
       </div>
     </div>
   );
-
-  // ===== RENDER KONTEN UTAMA =====
-  const renderContent = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return renderDashboard();
-      case 'dispensasi':
-        return renderDispensasi();
-      case 'pengumuman':
-        return renderPengumuman();
-      case 'profil':
-        return renderProfil();
-      default:
-        return renderDashboard();
-    }
-  };
-
-  // ===== MENU SIDEBAR =====
-  const menuItems = [
-    { id: 'dashboard', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard Presensi Saya' },
-    { id: 'dispensasi', icon: <Camera className="w-4 h-4" />, label: 'Aplikasi Klik & Dispensasi' },
-    { id: 'pengumuman', icon: <Bell className="w-4 h-4" />, label: 'Pengumuman Sekolah' },
-    { id: 'profil', icon: <Lock className="w-4 h-4" />, label: 'Profil & Password' },
-  ];
-
-  const handleMenuClick = (page: string) => {
-    if (page === 'keluar') {
-      onLogout();
-      return;
-    }
-    setCurrentPage(page as any);
-    setIsSidebarOpen(false);
-  };
 
   // ===== RENDER UTAMA =====
   return (
