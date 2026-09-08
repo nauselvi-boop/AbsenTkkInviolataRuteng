@@ -326,6 +326,7 @@ function App() {
         />
       );
     } else {
+      // Pastikan MobileStaffDashboard menerima props yang sama seperti StaffDashboard
       return (
         <MobileStaffDashboard
           user={user}
