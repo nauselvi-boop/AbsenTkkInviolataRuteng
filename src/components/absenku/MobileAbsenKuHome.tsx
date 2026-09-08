@@ -28,6 +28,7 @@ export const MobileAbsenKuHome: React.FC<MobileAbsenKuHomeProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isIzinOpen, setIsIzinOpen] = useState(false);
 
+  // Daftar menu admin
   const menuItems = [
     { icon: <FileSpreadsheet className="w-5 h-5" />, label: 'Rekap Absensi Excel', tabId: 'laporan' },
     { icon: <Users className="w-5 h-5" />, label: 'Data Guru & Pegawai', tabId: 'pengguna' },
@@ -37,16 +38,18 @@ export const MobileAbsenKuHome: React.FC<MobileAbsenKuHomeProps> = ({
       label: 'Persetujuan Izin & Kunci',
       isDropdown: true,
       subItems: [
-        { label: '▶ Izin Terlambat', tabId: 'izin_terlambat' },
-        { label: '▶ Izin Tidak Masuk', tabId: 'izin_tidak_masuk' },
+        { label: 'Izin Terlambat', tabId: 'izin_terlambat' },
+        { label: 'Izin Tidak Masuk', tabId: 'izin_tidak_masuk' },
       ],
     },
     { icon: <Megaphone className="w-5 h-5" />, label: 'Pengumuman Sekolah', tabId: 'pengumuman' },
-    { icon: <UserCog className="w-5 h-5" />, label: 'Profil & Password Admin', tabId: 'profile' },
+    { icon: <UserCog className="w-5 h-5" />, label: 'Profil & Password', tabId: 'profile' },
   ];
 
   const handleMenuClick = (tabId: string) => {
-    if (onNavigate) onNavigate(tabId);
+    if (onNavigate) {
+      onNavigate(tabId);
+    }
     setIsSidebarOpen(false);
   };
 
@@ -163,7 +166,7 @@ export const MobileAbsenKuHome: React.FC<MobileAbsenKuHomeProps> = ({
         </div>
       </div>
 
-      {/* KONTEN UTAMA (HALAMAN DASHBOARD) */}
+      {/* KONTEN UTAMA */}
       <div className="flex-1 p-4 space-y-4">
         <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
           <h2 className="text-xl font-bold text-gray-800">Dashboard Admin Utama</h2>
