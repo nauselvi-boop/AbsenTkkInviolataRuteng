@@ -24,7 +24,6 @@ import {
   AlertCircle,
   Calendar,
   UserCog,
-  Camera,
   Award,
 } from 'lucide-react';
 
@@ -268,14 +267,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // ===== DASHBOARD UTAMA (MONITORING) – TAMPILAN SESUAI GAMBAR =====
+  // ===== DASHBOARD UTAMA – SESUAI GAMBAR REFERENSI =====
   const renderMonitoring = () => {
-    // Ambil user admin pertama
     const adminUser = users.find(u => u.role === 'ADMIN');
 
     return (
       <div className="space-y-6">
-        {/* Kartu Grid Menu Utama (3 kolom) */}
+        {/* Grid 3 Kartu Utama */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
             <div className="flex items-start gap-4">
@@ -323,7 +321,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
 
-        {/* Bagian Admin & Jadwal (2 kolom) */}
+        {/* Kartu Admin, Jadwal, Pengumuman */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <h4 className="font-bold text-gray-800 flex items-center gap-2">
@@ -355,14 +353,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
 
-        {/* Tracking Lokasi Guru & Peta */}
+        {/* Tracking Lokasi & Peta */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2 mb-4">
             <MapPin className="w-5 h-5 text-emerald-600" />
             Tracking Lokasi Guru TKK Inviolata
           </h3>
 
-          {/* Informasi Guru (contoh data) */}
           <div className="bg-gray-50 p-3 rounded-xl mb-4">
             <p className="font-semibold text-gray-700 text-sm">
               Nama: Ibu Yuliana Nardi, S.Pd. (Guru Kelompok A (TK-A))
@@ -371,7 +368,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <p className="text-xs text-emerald-600 font-medium">Waktu Presensi: 12.06.51 WITA (Tepat Waktu)</p>
           </div>
 
-          {/* Peta */}
           <div className="h-[300px] rounded-xl overflow-hidden border border-slate-200">
             <GeofenceMap
               config={geofenceConfig}
