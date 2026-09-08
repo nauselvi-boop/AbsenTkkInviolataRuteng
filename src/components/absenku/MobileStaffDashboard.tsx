@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   School,
   LayoutDashboard,
@@ -8,10 +8,8 @@ import {
   LogOut,
   Menu,
   X,
-  Clock,
   Phone,
   FileText,
-  Calendar,
   User,
 } from 'lucide-react';
 
@@ -36,13 +34,14 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
     type: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const today = new Date().toISOString().split('T')[0];
   const todayRecord = records.find((r) => r.userId === user.id?.toString() && r.date === today);
   const hasCheckedIn = !!todayRecord?.checkInTime;
   const hasCheckedOut = !!todayRecord?.checkOutTime;
 
-  // Menu untuk grid (seperti gambar)
   const menuItems = [
     { icon: <LayoutDashboard className="w-6 h-6 text-emerald-600" />, label: 'Dashboard', tabId: 'dashboard' },
     { icon: <Camera className="w-6 h-6 text-blue-600" />, label: 'Presensi', tabId: 'presensi' },
@@ -52,47 +51,78 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
   ];
 
   const handleMenuClick = (tabId: string) => {
-    // Untuk sementara hanya close sidebar
     setIsSidebarOpen(false);
-    // Anda bisa tambahkan navigasi jika diperlukan
   };
 
+  // ===== KAMERA: Ambil Foto =====
+  const takePhoto = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      navigator.mediaDevices
+        .getUserMedia({ video: { facingMode: 'user' } })
+        .then((stream) => {
+          if (!videoRef.current) {
+            reject(new Error('Video element not found'));
+            return;
+          }
+          videoRef.current.srcObject = stream;
+          videoRef.current.play();
+          setTimeout(() => {
+            const canvas = canvasRef.current;
+            if (!canvas || !videoRef.current) {
+              reject(new Error('Canvas or video not available'));
+              return;
+            }
+            const context = canvas.getContext('2d');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            context?.drawImage(videoRef.current, 0, 0);
+            const photoData = canvas.toDataURL('image/jpeg', 0.8);
+            stream.getTracks().forEach((track) => track.stop());
+            resolve(photoData);
+          }, 1000);
+        })
+        .catch((err) => reject(new Error('Gagal mengakses kamera: ' + err.message)));
+    });
+  };
+
+  // ===== GPS: Ambil Lokasi =====
+  const getLocation = (): Promise<{ lat: number; lng: number }> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation tidak didukung'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => reject(new Error('Gagal mengambil lokasi: ' + err.message)),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+  };
+
+  // ===== PRESENSI =====
   const handlePresensi = async (type: 'masuk' | 'pulang') => {
     setIsLoading(true);
     setStatusMessage({ text: '', type: '' });
 
     try {
+      // Ambil foto & lokasi paralel
+      const [photo, location] = await Promise.all([takePhoto(), getLocation()]);
       const dateStr = new Date().toISOString().split('T')[0];
       const timeStr = new Date().toLocaleTimeString('id-ID', {
         hour: '2-digit',
         minute: '2-digit',
       });
 
-      let lat = 0,
-        lng = 0;
-      if (navigator.geolocation) {
-        await new Promise((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              lat = pos.coords.latitude;
-              lng = pos.coords.longitude;
-              resolve(true);
-            },
-            () => resolve(true),
-            { enableHighAccuracy: true, timeout: 5000 }
-          );
-        });
-      }
-
       const payload = {
         user_id: user.id,
         date: dateStr,
         status: 'hadir',
-        location: `GPS: ${lat}, ${lng}`,
+        location: `GPS: ${location.lat}, ${location.lng}`,
         notes: `Presensi ${type} via HP`,
-        photo: null,
-        lat: lat,
-        lng: lng,
+        photo: photo,
+        lat: location.lat,
+        lng: location.lng,
       };
 
       const response = await fetch('/api/attendance', {
@@ -128,6 +158,12 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
+      {/* Video & Canvas (disembunyikan) */}
+      <div style={{ display: 'none' }}>
+        <video ref={videoRef} width="320" height="240" autoPlay playsInline />
+        <canvas ref={canvasRef} width="320" height="240" />
+      </div>
+
       {/* HEADER */}
       <header className="bg-[#1a2e3b] text-white p-4 flex items-center justify-between sticky top-0 z-20 shadow-lg">
         <div className="flex items-center gap-2">
@@ -139,7 +175,7 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
         </button>
       </header>
 
-      {/* SIDEBAR (sama seperti sebelumnya) */}
+      {/* SIDEBAR */}
       {isSidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black/50" onClick={() => setIsSidebarOpen(false)} />
       )}
@@ -148,7 +184,6 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* ... isi sidebar (bisa diambil dari kode sebelumnya) ... */}
         <div className="p-4 border-b border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <School className="w-6 h-6 text-emerald-400" />
@@ -201,7 +236,6 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
 
       {/* KONTEN UTAMA */}
       <div className="flex-1 p-4 space-y-4">
-        {/* Profil */}
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <h2 className="text-lg font-bold text-gray-800">Dashboard Presensi Saya</h2>
           <p className="text-sm text-gray-600 mt-1">{user?.name || 'User'}</p>
@@ -209,7 +243,6 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
           <p className="text-xs text-gray-400">NIP: {user?.nip || '-'}</p>
         </div>
 
-        {/* Status Presensi */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-2xl shadow-sm p-4">
             <p className="text-xs font-bold text-gray-700">PRESENSI MASUK</p>
@@ -231,7 +264,6 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
           </div>
         </div>
 
-        {/* TOMBOL PRESENSI (seperti gambar) */}
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <div className="flex items-center gap-2 mb-3">
             <Camera className="w-5 h-5 text-emerald-600" />
@@ -263,7 +295,6 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
           </div>
         </div>
 
-        {/* MENU GRID (seperti gambar) */}
         <div className="grid grid-cols-2 gap-3">
           {menuItems.map((item) => (
             <button
@@ -279,7 +310,6 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
           ))}
         </div>
 
-        {/* Pesan Status */}
         {statusMessage.text && (
           <div
             className={`p-3 rounded-xl text-sm font-semibold ${
@@ -292,7 +322,6 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
           </div>
         )}
 
-        {/* WA Admin */}
         <a
           href="https://wa.me/6281238889901"
           target="_blank"
@@ -306,7 +335,6 @@ export const MobileStaffDashboard: React.FC<MobileStaffDashboardProps> = ({
           </div>
         </a>
 
-        {/* Keluar */}
         <button
           onClick={onLogout}
           className="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition"
