@@ -1,15 +1,15 @@
 import { AttendanceRecord, AttendanceUnlockRequest, GeofenceConfig, User } from '../types';
 
 export const DEFAULT_GEOFENCE: GeofenceConfig = {
-  schoolName: 'TKK Inviolata Ruteng',
-  address: 'Jl. Ahmad Yani No. 12, Kel. Watu, Kec. Langke Rembong, Kota Ruteng, Kab. Manggarai, NTT',
-  latitude: -8.6135,
-  longitude: 120.4635,
-  radiusMeters: 80,
+  schoolName: 'TK Inviolata Ruteng',
+  address: 'Jl. Ranaka, Ruteng, Kec. Langke Rembong, Kab. Manggarai, Nusa Tenggara Timur',
+  latitude: -8.616310,
+  longitude: 120.463403,
+  radiusMeters: 50,
   checkInStartTime: '06:30',
-  checkInDeadlineTime: '07:30',
-  checkOutStartTime: '12:30',
-  checkOutEndTime: '15:30',
+  checkInDeadlineTime: '07:15',
+  checkOutStartTime: '00:00',
+  checkOutEndTime: '02:00',
   adminContactPhone: '0812-3888-9901',
   adminContactName: 'Sr. Maria Inviolata, S.Pd.',
   antiFakeGpsEnabled: true,
@@ -545,7 +545,7 @@ export function getStoredActiveUserId(): string {
   } catch (e) {
     // ignore
   }
-  return INITIAL_USERS[0].id;
+  return String(INITIAL_USERS[0].id);
 }
 
 export function saveStoredActiveUserId(userId: string): void {

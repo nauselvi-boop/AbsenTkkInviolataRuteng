@@ -37,6 +37,7 @@ interface CameraAttendanceModalProps {
     startDate?: string,
     endDate?: string
   ) => void;
+  initialType?: 'MASUK' | 'PULANG';
 }
 
 export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
@@ -48,9 +49,16 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
   onRecordAttendance,
   unlockRequests,
   onRequestUnlock,
+  initialType = 'MASUK',
 }) => {
   const [selectedUser, setSelectedUser] = useState<User>(currentUser);
-  const [attendanceType, setAttendanceType] = useState<'MASUK' | 'PULANG'>('MASUK');
+  const [attendanceType, setAttendanceType] = useState<'MASUK' | 'PULANG'>(initialType);
+
+  useEffect(() => {
+    if (initialType && isOpen) {
+      setAttendanceType(initialType);
+    }
+  }, [initialType, isOpen]);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   
   // Device Detection: is mobile / smartphone vs laptop / desktop

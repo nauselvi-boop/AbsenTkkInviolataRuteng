@@ -36,10 +36,18 @@ export const GeofenceMap: React.FC<GeofenceMapProps> = ({
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
+    if ((mapContainerRef.current as any)._leaflet_id && !mapInstanceRef.current) {
+      delete (mapContainerRef.current as any)._leaflet_id;
+    }
+
+    const schoolLat = Number(config.latitude) || -8.6135;
+    const schoolLng = Number(config.longitude) || 120.4689;
+    const schoolRadius = Number(config.radiusMeters) || 50;
+
     if (!mapInstanceRef.current) {
       // Initialize map centered at school coordinates
       const map = L.map(mapContainerRef.current, {
-        center: [config.latitude, config.longitude],
+        center: [schoolLat, schoolLng],
         zoom: 17,
         zoomControl: true,
       });
@@ -65,7 +73,7 @@ export const GeofenceMap: React.FC<GeofenceMapProps> = ({
         iconAnchor: [18, 18],
       });
 
-      const schoolMarker = L.marker([config.latitude, config.longitude], {
+      const schoolMarker = L.marker([schoolLat, schoolLng], {
         icon: schoolIcon,
       })
         .addTo(map)
@@ -74,8 +82,8 @@ export const GeofenceMap: React.FC<GeofenceMapProps> = ({
       schoolMarkerRef.current = schoolMarker;
 
       // Geofence Circle
-      const circle = L.circle([config.latitude, config.longitude], {
-        radius: config.radiusMeters,
+      const circle = L.circle([schoolLat, schoolLng], {
+        radius: schoolRadius,
         color: '#10b981',
         fillColor: '#34d399',
         fillOpacity: 0.18,
@@ -104,6 +112,9 @@ export const GeofenceMap: React.FC<GeofenceMapProps> = ({
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
+      if (mapContainerRef.current && (mapContainerRef.current as any)._leaflet_id) {
+        delete (mapContainerRef.current as any)._leaflet_id;
+      }
     };
   }, []);
 
@@ -111,14 +122,18 @@ export const GeofenceMap: React.FC<GeofenceMapProps> = ({
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
+    const schoolLat = Number(config.latitude) || -8.6135;
+    const schoolLng = Number(config.longitude) || 120.4689;
+    const schoolRadius = Number(config.radiusMeters) || 50;
+
     if (schoolMarkerRef.current) {
-      schoolMarkerRef.current.setLatLng([config.latitude, config.longitude]);
-      schoolMarkerRef.current.setPopupContent(`<b>${config.schoolName}</b><br/>Radius: ${config.radiusMeters} meter`);
+      schoolMarkerRef.current.setLatLng([schoolLat, schoolLng]);
+      schoolMarkerRef.current.setPopupContent(`<b>${config.schoolName}</b><br/>Radius: ${schoolRadius} meter`);
     }
 
     if (circleRef.current) {
-      circleRef.current.setLatLng([config.latitude, config.longitude]);
-      circleRef.current.setRadius(config.radiusMeters);
+      circleRef.current.setLatLng([schoolLat, schoolLng]);
+      circleRef.current.setRadius(schoolRadius);
     }
   }, [config.latitude, config.longitude, config.radiusMeters, config.schoolName]);
 

@@ -59,6 +59,53 @@ export function exportAttendanceToExcel(
 }
 
 /**
+ * Export daily attendance records (Hari Ini / Per Tanggal)
+ */
+export function exportAttendanceDaily(
+  records: AttendanceRecord[],
+  targetDate?: string,
+  fileName?: string
+) {
+  const dateToUse = targetDate || new Date().toISOString().split('T')[0];
+  const filtered = records.filter((r) => r.date === dateToUse);
+  const file = fileName || `Rekap_Presensi_Harian_${dateToUse}.xlsx`;
+  exportAttendanceToExcel(filtered.length > 0 ? filtered : records, file);
+}
+
+/**
+ * Export weekly attendance records (7 Hari Terakhir / Minggu Berjalan)
+ */
+export function exportAttendanceWeekly(
+  records: AttendanceRecord[],
+  fileName?: string
+) {
+  const today = new Date();
+  const filtered = records.filter((r) => {
+    const recDate = new Date(r.date);
+    const diffTime = Math.abs(today.getTime() - recDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 7;
+  });
+  const todayStr = today.toISOString().split('T')[0];
+  const file = fileName || `Rekap_Presensi_Mingguan_${todayStr}.xlsx`;
+  exportAttendanceToExcel(filtered.length > 0 ? filtered : records, file);
+}
+
+/**
+ * Export monthly attendance records (Bulan Berjalan / Per Bulan)
+ */
+export function exportAttendanceMonthly(
+  records: AttendanceRecord[],
+  yearMonth?: string,
+  fileName?: string
+) {
+  const ym = yearMonth || new Date().toISOString().substring(0, 7);
+  const filtered = records.filter((r) => r.date.startsWith(ym));
+  const file = fileName || `Rekap_Presensi_Bulanan_${ym}.xlsx`;
+  exportAttendanceToExcel(filtered.length > 0 ? filtered : records, file);
+}
+
+/**
  * Export user master list to Excel (.xlsx) file
  */
 export function exportUsersToExcel(users: User[], fileName = 'Data_Guru_Pegawai_TK.xlsx') {

@@ -148,13 +148,13 @@ export const StaffAttendanceChart: React.FC<StaffAttendanceChartProps> = ({
 
   // Custom Tooltip for Recharts
   const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
+    if (active && payload && payload.length && payload[0]?.payload) {
       const data = payload[0].payload;
       return (
         <div className="bg-slate-900/95 text-white p-3.5 rounded-xl shadow-xl text-xs space-y-2 border border-slate-700 min-w-[210px] backdrop-blur-md">
           <div className="border-b border-slate-700 pb-1.5 flex items-center justify-between">
-            <span className="font-bold text-sky-400">{data.label}</span>
-            <span className="text-[10px] text-slate-400 font-mono">{data.date}</span>
+            <span className="font-bold text-sky-400">{data?.label || label || ''}</span>
+            <span className="text-[10px] text-slate-400 font-mono">{data?.date || ''}</span>
           </div>
 
           <div className="space-y-1.5">

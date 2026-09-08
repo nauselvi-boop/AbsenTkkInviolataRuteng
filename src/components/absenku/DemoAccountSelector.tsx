@@ -24,35 +24,54 @@ export const DemoAccountSelector: React.FC<DemoAccountSelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Quick Demo Accounts
-  const adminUser = users.find((u) => u.role === 'ADMIN') || users[0];
-  const guruUser = users.find((u) => u.role === 'GURU') || users[1];
-  const pegawaiUser = users.find((u) => u.role === 'PEGAWAI') || users[4] || users[0];
+  // Quick Demo Accounts with safe fallbacks
+  const adminUser =
+    users.find((u) => (u.role || '').toUpperCase() === 'ADMIN') ||
+    users[0] ||
+    currentUser;
+  const guruUser =
+    users.find((u) => (u.role || '').toUpperCase() === 'GURU') ||
+    users[1] ||
+    currentUser;
+  const pegawaiUser =
+    users.find(
+      (u) =>
+        (u.role || '').toUpperCase() === 'PEGAWAI' ||
+        (u.role || '').toUpperCase() === 'STAFF'
+    ) ||
+    users[2] ||
+    currentUser;
 
-  const getRoleBadge = (role: UserRole) => {
-    switch (role) {
-      case 'ADMIN':
-        return {
-          bg: 'bg-amber-400 text-slate-900 border-amber-500',
-          label: 'Admin Utama',
-          icon: <ShieldCheck className="w-3 h-3 text-slate-900" />,
-        };
-      case 'GURU':
-        return {
-          bg: 'bg-sky-100 text-sky-800 border-sky-300',
-          label: 'Guru TK',
-          icon: <GraduationCap className="w-3 h-3 text-sky-700" />,
-        };
-      case 'PEGAWAI':
-        return {
-          bg: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-          label: 'Pegawai TU',
-          icon: <Briefcase className="w-3 h-3 text-emerald-700" />,
-        };
+  const getRoleBadge = (role?: string) => {
+    const r = (role || '').toUpperCase();
+    if (r === 'ADMIN' || r.includes('ADMIN') || r.includes('KEPALA')) {
+      return {
+        bg: 'bg-amber-400 text-slate-900 border-amber-500',
+        label: 'Admin Utama',
+        icon: <ShieldCheck className="w-3 h-3 text-slate-900" />,
+      };
     }
+    if (r === 'GURU' || r.includes('GURU')) {
+      return {
+        bg: 'bg-sky-100 text-sky-800 border-sky-300',
+        label: 'Guru TK',
+        icon: <GraduationCap className="w-3 h-3 text-sky-700" />,
+      };
+    }
+    // PEGAWAI, STAFF, or any other fallback
+    return {
+      bg: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      label: r === 'STAFF' ? 'Staf Sekolah' : r === 'PEGAWAI' ? 'Pegawai TU' : r || 'Pegawai TU',
+      icon: <Briefcase className="w-3 h-3 text-emerald-700" />,
+    };
   };
 
-  const activeBadge = getRoleBadge(currentUser.role);
+  const activeBadge = getRoleBadge(currentUser?.role);
+
+  const displayName = currentUser?.name ? currentUser.name.split(',')[0] : 'Pengguna';
+  const avatarUrl =
+    currentUser?.avatarUrl ||
+    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80';
 
   return (
     <div className="relative">
@@ -64,8 +83,8 @@ export const DemoAccountSelector: React.FC<DemoAccountSelectorProps> = ({
       >
         <div className="relative">
           <img
-            src={currentUser.avatarUrl}
-            alt={currentUser.name}
+            src={avatarUrl}
+            alt={displayName}
             className="w-6 h-6 rounded-full object-cover border border-white/40"
           />
           <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-slate-900" />
@@ -73,7 +92,7 @@ export const DemoAccountSelector: React.FC<DemoAccountSelectorProps> = ({
 
         <div className="flex flex-col text-left">
           <span className="text-[11px] font-bold leading-tight flex items-center gap-1">
-            {currentUser.name.split(',')[0]}
+            {displayName}
           </span>
           <span className="text-[9px] text-amber-300 font-semibold tracking-wide uppercase flex items-center gap-1">
             {activeBadge.label}
@@ -115,109 +134,115 @@ export const DemoAccountSelector: React.FC<DemoAccountSelectorProps> = ({
               </span>
 
               {/* 1. Admin Utama */}
-              <button
-                onClick={() => {
-                  onSelectUser(adminUser);
-                  setIsOpen(false);
-                }}
-                className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition ${
-                  currentUser.id === adminUser.id
-                    ? 'bg-amber-50 border-amber-300 ring-1 ring-amber-400'
-                    : 'bg-white hover:bg-slate-100 border-slate-200'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 font-bold">
-                    <ShieldCheck className="w-4 h-4 text-amber-700" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs text-slate-900">
-                        {adminUser.name}
-                      </span>
-                      <span className="text-[9px] bg-amber-400 text-slate-900 font-extrabold px-1.5 py-0.2 rounded">
-                        Admin
-                      </span>
+              {adminUser && (
+                <button
+                  onClick={() => {
+                    onSelectUser(adminUser);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition ${
+                    currentUser?.id === adminUser.id
+                      ? 'bg-amber-50 border-amber-300 ring-1 ring-amber-400'
+                      : 'bg-white hover:bg-slate-100 border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 font-bold">
+                      <ShieldCheck className="w-4 h-4 text-amber-700" />
                     </div>
-                    <p className="text-[10px] text-slate-500">
-                      Kelola batas jam, GPS, buka kunci & laporan
-                    </p>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-slate-900">
+                          {adminUser.name}
+                        </span>
+                        <span className="text-[9px] bg-amber-400 text-slate-900 font-extrabold px-1.5 py-0.2 rounded">
+                          Admin
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500">
+                        Kelola batas jam, GPS, buka kunci & laporan
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {currentUser.id === adminUser.id && (
-                  <Check className="w-4 h-4 text-amber-600 shrink-0" />
-                )}
-              </button>
+                  {currentUser?.id === adminUser.id && (
+                    <Check className="w-4 h-4 text-amber-600 shrink-0" />
+                  )}
+                </button>
+              )}
 
               {/* 2. Guru TK */}
-              <button
-                onClick={() => {
-                  onSelectUser(guruUser);
-                  setIsOpen(false);
-                }}
-                className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition ${
-                  currentUser.id === guruUser.id
-                    ? 'bg-sky-50 border-sky-300 ring-1 ring-sky-400'
-                    : 'bg-white hover:bg-slate-100 border-slate-200'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-sky-100 border border-sky-300 flex items-center justify-center text-sky-800 font-bold">
-                    <GraduationCap className="w-4 h-4 text-sky-700" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs text-slate-900">
-                        {guruUser.name}
-                      </span>
-                      <span className="text-[9px] bg-sky-100 text-sky-800 font-bold px-1.5 py-0.2 rounded border border-sky-300">
-                        Guru
-                      </span>
+              {guruUser && (
+                <button
+                  onClick={() => {
+                    onSelectUser(guruUser);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition ${
+                    currentUser?.id === guruUser.id
+                      ? 'bg-sky-50 border-sky-300 ring-1 ring-sky-400'
+                      : 'bg-white hover:bg-slate-100 border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-sky-100 border border-sky-300 flex items-center justify-center text-sky-800 font-bold">
+                      <GraduationCap className="w-4 h-4 text-sky-700" />
                     </div>
-                    <p className="text-[10px] text-slate-500">
-                      Presensi masuk & pulang dengan batas waktu
-                    </p>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-slate-900">
+                          {guruUser.name}
+                        </span>
+                        <span className="text-[9px] bg-sky-100 text-sky-800 font-bold px-1.5 py-0.2 rounded border border-sky-300">
+                          Guru
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500">
+                        Presensi masuk & pulang dengan batas waktu
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {currentUser.id === guruUser.id && (
-                  <Check className="w-4 h-4 text-sky-600 shrink-0" />
-                )}
-              </button>
+                  {currentUser?.id === guruUser.id && (
+                    <Check className="w-4 h-4 text-sky-600 shrink-0" />
+                  )}
+                </button>
+              )}
 
               {/* 3. Pegawai TU */}
-              <button
-                onClick={() => {
-                  onSelectUser(pegawaiUser);
-                  setIsOpen(false);
-                }}
-                className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition ${
-                  currentUser.id === pegawaiUser.id
-                    ? 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-400'
-                    : 'bg-white hover:bg-slate-100 border-slate-200'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800 font-bold">
-                    <Briefcase className="w-4 h-4 text-emerald-700" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs text-slate-900">
-                        {pegawaiUser.name}
-                      </span>
-                      <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded border border-emerald-300">
-                        Pegawai
-                      </span>
+              {pegawaiUser && (
+                <button
+                  onClick={() => {
+                    onSelectUser(pegawaiUser);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition ${
+                    currentUser?.id === pegawaiUser.id
+                      ? 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-400'
+                      : 'bg-white hover:bg-slate-100 border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800 font-bold">
+                      <Briefcase className="w-4 h-4 text-emerald-700" />
                     </div>
-                    <p className="text-[10px] text-slate-500">
-                      Presensi staf TU & administrasi sekolah
-                    </p>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-slate-900">
+                          {pegawaiUser.name}
+                        </span>
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded border border-emerald-300">
+                          Pegawai
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500">
+                        Presensi staf TU & administrasi sekolah
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {currentUser.id === pegawaiUser.id && (
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                )}
-              </button>
+                  {currentUser?.id === pegawaiUser.id && (
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  )}
+                </button>
+              )}
             </div>
 
             {/* All Staff List option */}

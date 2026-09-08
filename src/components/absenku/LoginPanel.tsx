@@ -121,14 +121,31 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
 
       <div className="w-full max-w-[390px] sm:max-w-[420px] relative mt-10">
         <div className="relative rounded-[36px] border-[3.5px] border-[#36495b] bg-[#d3ebf6]/90 backdrop-blur-md shadow-2xl p-4 sm:p-5 pt-14">
-          <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 rounded-full bg-white border-[3.5px] border-[#36495b] shadow-md flex items-center justify-center z-10">
-            <svg viewBox="0 0 100 100" className="w-14 h-14 fill-[#36495b]" aria-hidden="true">
-              <circle cx="50" cy="35" r="15" />
-              <path d="M22 84 C22 60, 33 53, 50 53 C67 53, 78 60, 78 84 Z" />
-            </svg>
+          <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 rounded-full bg-white border-[3.5px] border-[#36495b] shadow-md flex items-center justify-center z-10 overflow-hidden p-1.5">
+            <img
+              src="/logo-tk1.png"
+              alt="Logo TKK Inviolata Ruteng"
+              className="w-full h-full object-contain rounded-full"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (!target.src.endsWith('.jpg')) {
+                  target.src = '/logo-tk1.jpg';
+                }
+              }}
+            />
           </div>
 
           <div className="border border-[#36495b]/40 rounded-[26px] p-5 sm:p-6 pt-7 sm:pt-8 flex flex-col justify-between">
+            {/* School Brand Title */}
+            <div className="text-center mb-4">
+              <h2 className="text-[#2c3e50] font-extrabold text-sm tracking-wider uppercase">
+                TKK INVIOLATA RUTENG
+              </h2>
+              <p className="text-[#4e6072] text-[11px] font-semibold">
+                Sistem Presensi Online Pendidik & Tenaga Kependidikan
+              </p>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email */}
               <div className="bg-[#4e6072] hover:bg-[#465768] focus-within:bg-[#465768] transition rounded-xl px-4 py-3 flex items-center gap-3.5 text-white shadow-inner">

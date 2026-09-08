@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AttendanceRecord, UserRole } from '../types';
 import {
   FileSpreadsheet,
@@ -19,6 +19,7 @@ interface AttendanceReportsProps {
   isPersonalView?: boolean;
   currentUserRole?: UserRole;
   currentUserName?: string;
+  initialDatePreset?: 'ALL' | 'TODAY' | 'WEEK' | 'MONTH';
 }
 
 export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
@@ -26,11 +27,18 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
   isPersonalView = false,
   currentUserRole,
   currentUserName,
+  initialDatePreset = 'ALL',
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'GURU' | 'PEGAWAI'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'HADIR' | 'TERLAMBAT'>('ALL');
-  const [datePreset, setDatePreset] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
+  const [datePreset, setDatePreset] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>(initialDatePreset);
+
+  useEffect(() => {
+    if (initialDatePreset) {
+      setDatePreset(initialDatePreset);
+    }
+  }, [initialDatePreset]);
 
   // Photo viewer modal
   const [selectedRecordForPhoto, setSelectedRecordForPhoto] = useState<{

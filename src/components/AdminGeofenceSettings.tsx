@@ -32,7 +32,7 @@ export const AdminGeofenceSettings: React.FC<AdminGeofenceSettingsProps> = ({
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'radiusMeters' ? Number(value) : value,
+      [name]: (name === 'radiusMeters' || name === 'latitude' || name === 'longitude') ? (value === '' ? '' : Number(value)) : value,
     }));
   };
 
@@ -41,7 +41,12 @@ export const AdminGeofenceSettings: React.FC<AdminGeofenceSettingsProps> = ({
     setIsLoading(true);
     setMessage(null);
     try {
-      await onSaveConfig(formData);
+      await onSaveConfig({
+        ...formData,
+        latitude: Number(formData.latitude) || -8.6135,
+        longitude: Number(formData.longitude) || 120.4689,
+        radiusMeters: Number(formData.radiusMeters) || 50,
+      });
       setMessage({ text: '✅ Konfigurasi berhasil disimpan!', type: 'success' });
     } catch (error: any) {
       setMessage({ text: `❌ Gagal menyimpan: ${error.message}`, type: 'error' });
@@ -50,9 +55,9 @@ export const AdminGeofenceSettings: React.FC<AdminGeofenceSettingsProps> = ({
     }
   };
 
-  const lat = formData.latitude || -8.6135;
-  const lng = formData.longitude || 120.4689;
-  const radius = formData.radiusMeters || 50;
+  const lat = Number(formData.latitude) || -8.6135;
+  const lng = Number(formData.longitude) || 120.4689;
+  const radius = Number(formData.radiusMeters) || 50;
 
   return (
     <div className="space-y-6">

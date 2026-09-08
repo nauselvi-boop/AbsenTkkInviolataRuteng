@@ -370,9 +370,9 @@ export const PengaturanAbsensiModal: React.FC<{
     e.preventDefault();
     onSave({
       ...config,
-      latitude: lat,
-      longitude: lng,
-      radiusMeters: radius,
+      latitude: Number(lat) || -8.6135,
+      longitude: Number(lng) || 120.4689,
+      radiusMeters: Number(radius) || 80,
       checkInStartTime: checkInStart,
       checkInDeadlineTime: checkInDeadline,
       checkOutStartTime: checkOutStart,
@@ -721,3 +721,110 @@ export const SelfieDetailModal: React.FC<{
     </div>
   );
 };
+
+// ======================= 6. PROFIL TKK INVIOLATA MODAL =======================
+export const ProfilSekolahModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+}> = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-[#d81b60] flex items-center justify-center text-white font-bold">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-slate-800">
+                Profil TKK Inviolata Ruteng
+              </h3>
+              <p className="text-xs text-slate-500">
+                Data Lembaga & Pengelola Sekolah Katolik Ruteng
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto py-4 space-y-4">
+          <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <img
+              src="/logo-tk1.png"
+              alt="Logo TKK Inviolata Ruteng"
+              className="w-16 h-16 object-contain rounded-xl bg-white p-1 border border-slate-200 shadow-xs"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (!target.src.endsWith('.jpg')) {
+                  target.src = '/logo-tk1.jpg';
+                }
+              }}
+            />
+            <div>
+              <h4 className="font-extrabold text-slate-900 text-sm">
+                TKK INVIOLATA RUTENG
+              </h4>
+              <p className="text-xs text-[#0088cc] font-semibold">
+                NPSN: 50302341 • Terakreditasi A
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Kec. Langke Rembong, Kab. Manggarai, Nusa Tenggara Timur
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between p-2.5 bg-slate-50 rounded-lg">
+              <span className="text-slate-500 font-medium">Kepala Sekolah:</span>
+              <span className="font-bold text-slate-800">Sr. Maria Inviolata, S.Pd.</span>
+            </div>
+            <div className="flex justify-between p-2.5 bg-slate-50 rounded-lg">
+              <span className="text-slate-500 font-medium">Status Lembaga:</span>
+              <span className="font-bold text-slate-800">Swasta Katolik</span>
+            </div>
+            <div className="flex justify-between p-2.5 bg-slate-50 rounded-lg">
+              <span className="text-slate-500 font-medium">Waktu Presensi:</span>
+              <span className="font-bold text-emerald-700">WITA (Waktu Indonesia Tengah)</span>
+            </div>
+            <div className="flex justify-between p-2.5 bg-slate-50 rounded-lg">
+              <span className="text-slate-500 font-medium">Koordinat GPS TKK:</span>
+              <span className="font-bold font-mono text-slate-800">-8.6135°, 120.4635°</span>
+            </div>
+            <div className="flex justify-between p-2.5 bg-slate-50 rounded-lg">
+              <span className="text-slate-500 font-medium">Radius Aman Geofence:</span>
+              <span className="font-bold text-[#0088cc]">80 Meter dari Gedung</span>
+            </div>
+            <div className="flex justify-between p-2.5 bg-slate-50 rounded-lg">
+              <span className="text-slate-500 font-medium">Kontak & Telepon:</span>
+              <span className="font-bold text-slate-800">0812-3888-9901</span>
+            </div>
+          </div>
+
+          <div className="p-3.5 bg-sky-50 border border-sky-100 rounded-xl">
+            <h5 className="font-bold text-xs text-sky-900 mb-1">Visi TKK Inviolata Ruteng:</h5>
+            <p className="text-[11px] text-sky-800 leading-relaxed">
+              Mewujudkan generasi anak usia dini yang beriman, berkarakter mulia, cerdas, kreatif, dan mandiri berlandaskan kasih persaudaraan Kristiani.
+            </p>
+          </div>
+        </div>
+
+        <div className="pt-2 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-[#0088cc] text-white font-bold text-xs hover:bg-[#0077b5] transition"
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
