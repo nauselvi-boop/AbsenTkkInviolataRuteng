@@ -4,34 +4,75 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { StaffDashboard } from './components/StaffDashboard';
 import { MainLayout } from './components/MainLayout';
 import { MobileAbsenKuHome } from './components/absenku/MobileAbsenKuHome';
+import { MobileStaffDashboard } from './components/absenku/MobileStaffDashboard';
 import { User, AttendanceRecord, GeofenceConfig } from './types';
-import { INITIAL_USERS, DEFAULT_GEOFENCE, INITIAL_ATTENDANCE } from './data/mockData';
+
+// Data dummy sebagai fallback jika API gagal atau users kosong
+const DUMMY_USERS: User[] = [
+  {
+    id: 1,
+    name: 'Sr. Maria',
+    email: 'admin@tkkinviolata.sch.id',
+    nip: '198804152014022003',
+    role: 'ADMIN',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Sr.+Maria&background=8B5CF6&color=fff&size=40',
+    phone: '081238889901',
+  },
+  {
+    id: 2,
+    name: 'Ibu Yuliana',
+    email: 'guru@tkkinviolata.sch.id',
+    nip: '198805162015032004',
+    role: 'GURU',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Ibu+Yuliana&background=10B981&color=fff&size=40',
+    phone: '081234567890',
+  },
+  {
+    id: 3,
+    name: 'Bpk. Yohanes',
+    email: 'pegawai@tkkinviolata.sch.id',
+    nip: '198807172016042005',
+    role: 'PEGAWAI',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Bpk.+Yohanes&background=3B82F6&color=fff&size=40',
+    phone: '081298765432',
+  },
+];
+
+const DEFAULT_GEOFENCE: GeofenceConfig = {
+  schoolName: 'TKK Inviolata Ruteng',
+  latitude: -8.6135,
+  longitude: 120.4689,
+  radiusMeters: 50,
+  checkInStartTime: '06:30',
+  checkInDeadlineTime: '07:15',
+  checkOutStartTime: '12:30',
+  checkOutDeadlineTime: '15:30',
+};
 
 function App() {
+  // State utama
   const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
-  const [records, setRecords] = useState<AttendanceRecord[]>(INITIAL_ATTENDANCE);
+  const [users, setUsers] = useState<User[]>([]);
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [adminTab, setAdminTab] = useState<'monitoring' | 'laporan' | 'pengguna' | 'geofence' | 'izin' | 'pengumuman' | 'profile'>('monitoring');
-  const [reportPreset, setReportPreset] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
+  const [adminTab, setAdminTab] = useState<
+    'monitoring' | 'laporan' | 'pengguna' | 'geofence' | 'izin_terlambat' | 'izin_tidak_masuk' | 'pengumuman' | 'profile'
+  >('monitoring');
   const [geofenceConfig, setGeofenceConfig] = useState<GeofenceConfig>(DEFAULT_GEOFENCE);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isMobileScreen, setIsMobileScreen] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth < 768;
-    }
-    return false;
-  });
-  const [forceViewMode, setForceViewMode] = useState<'auto' | 'mobile' | 'desktop'>('auto');
+  const [isMobile, setIsMobile] = useState(false);
 
+  // Deteksi perangkat mobile
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobileScreen(window.innerWidth < 768);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // 1. Load user dari localStorage dan fetch geofence config
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -41,18 +82,13 @@ function App() {
         localStorage.removeItem('user');
       }
     }
-
+    // Fetch geofence config dari database
     const fetchGeofence = async () => {
       try {
         const res = await fetch('/api/geofence');
         const data = await res.json();
         if (data.success && data.data) {
-          setGeofenceConfig({
-            ...data.data,
-            latitude: Number(data.data.latitude) || DEFAULT_GEOFENCE.latitude,
-            longitude: Number(data.data.longitude) || DEFAULT_GEOFENCE.longitude,
-            radiusMeters: Number(data.data.radiusMeters) || DEFAULT_GEOFENCE.radiusMeters,
-          });
+          setGeofenceConfig(data.data);
         }
       } catch (error) {
         console.error('Gagal fetch geofence:', error);
@@ -64,6 +100,7 @@ function App() {
     setIsInitialized(true);
   }, []);
 
+  // 2. Fetch users dan records secara berurutan
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
@@ -73,6 +110,7 @@ function App() {
     fetchData();
   }, [user]);
 
+  // ---- Fungsi fetch data ----
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/users');
@@ -108,7 +146,11 @@ function App() {
             nip: userNip,
             date: item.attendance_date.split('T')[0],
             checkInTime: new Date(item.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-            checkInLocation: { latitude: item.check_in_lat || 0, longitude: item.check_in_lng || 0, distanceMeters: 0 },
+            checkInLocation: {
+              latitude: item.check_in_lat || 0,
+              longitude: item.check_in_lng || 0,
+              distanceMeters: 0,
+            },
             checkInStatus: 'TEPAT_WAKTU',
             checkInPhoto: avatar,
             status: item.status || 'hadir',
@@ -123,6 +165,7 @@ function App() {
     }
   };
 
+  // ---- Login / Logout ----
   const handleLogin = (selectedUser: User) => {
     setUser(selectedUser);
     localStorage.setItem('user', JSON.stringify(selectedUser));
@@ -139,9 +182,14 @@ function App() {
     await fetchRecords();
   };
 
+  // ---- CRUD Users ----
   const handleAddUser = async (newUser: any) => {
     try {
-      const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newUser) });
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser),
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         await fetchUsers();
@@ -157,7 +205,11 @@ function App() {
 
   const handleUpdateUser = async (updatedUser: User) => {
     try {
-      const res = await fetch(`/api/users?id=${updatedUser.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedUser) });
+      const res = await fetch(`/api/users?id=${updatedUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser),
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         await fetchUsers();
@@ -173,7 +225,9 @@ function App() {
   const handleDeleteUser = async (userId: string) => {
     if (!window.confirm('Yakin ingin menghapus user ini?')) return;
     try {
-      const res = await fetch(`/api/users?id=${userId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/users?id=${userId}`, {
+        method: 'DELETE',
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         await fetchUsers();
@@ -188,7 +242,11 @@ function App() {
 
   const handleImportUsers = async (newUsers: any[]) => {
     try {
-      const res = await fetch('/api/users/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ users: newUsers }) });
+      const res = await fetch('/api/users/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users: newUsers }),
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         await fetchUsers();
@@ -203,15 +261,14 @@ function App() {
 
   const handleSaveGeofence = async (config: GeofenceConfig) => {
     try {
-      const res = await fetch('/api/geofence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
+      const res = await fetch('/api/geofence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
       const data = await res.json();
       if (res.ok && data.success) {
-        setGeofenceConfig({
-          ...data.data,
-          latitude: Number(data.data.latitude) || DEFAULT_GEOFENCE.latitude,
-          longitude: Number(data.data.longitude) || DEFAULT_GEOFENCE.longitude,
-          radiusMeters: Number(data.data.radiusMeters) || DEFAULT_GEOFENCE.radiusMeters,
-        });
+        setGeofenceConfig(data.data);
         alert('✅ Konfigurasi berhasil disimpan!');
       } else {
         throw new Error(data.error || 'Gagal menyimpan konfigurasi');
@@ -223,6 +280,7 @@ function App() {
     }
   };
 
+  // ---- Render ----
   if (loading || !isInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -235,52 +293,58 @@ function App() {
   }
 
   if (!user) {
-    const loginUsers = users.length > 0 ? users : INITIAL_USERS;
+    const loginUsers = users.length > 0 ? users : DUMMY_USERS;
     return <LoginPanel users={loginUsers} onLogin={handleLogin} />;
   }
 
+  // ---- Deteksi Admin ----
   const userRole = user.role?.toLowerCase() || '';
-  const isAdmin = userRole === 'admin' || userRole.includes('admin') || user.role === 'ADMIN_UTAMA' || user.role === 'Administrator' || user.role === 'Administrator Utama';
+  const isAdmin =
+    userRole === 'admin' ||
+    userRole.includes('admin') ||
+    user.role === 'ADMIN_UTAMA' ||
+    user.role === 'Administrator' ||
+    user.role === 'Administrator Utama';
 
-  // Responsive check: if accessed on HP / mobile screen, or forceViewMode is mobile
-  const shouldShowMobileView =
-    forceViewMode === 'mobile' || (forceViewMode === 'auto' && isMobileScreen);
-
-  if (shouldShowMobileView) {
-    return (
-      <MobileAbsenKuHome
-        currentUser={user}
-        users={users.length > 0 ? users : INITIAL_USERS}
-        records={records}
-        geofenceConfig={geofenceConfig}
-        onLogout={handleLogout}
-        onRecordAttendance={(newRecord) => setRecords((prev) => [newRecord, ...prev])}
-        onOpenDesktopView={() => setForceViewMode('desktop')}
-        onNavigateTab={(tab, preset) => {
-          if (preset) {
-            setReportPreset(preset);
-          }
-          setAdminTab(tab as any);
-          setForceViewMode('desktop');
-        }}
-      />
-    );
+  // ---- RENDER MOBILE ----
+  if (isMobile) {
+    if (isAdmin) {
+      return (
+        <MobileAbsenKuHome
+          user={user}
+          onLogout={handleLogout}
+          onNavigate={(tab) => {
+            if (tab === 'desktop') {
+              // Bisa diarahkan ke desktop view atau reload dengan parameter
+              window.location.href = window.location.origin + '?desktop=true';
+            } else {
+              setAdminTab(tab as any);
+            }
+          }}
+        />
+      );
+    } else {
+      // Guru / Pegawai
+      return (
+        <MobileStaffDashboard
+          user={user}
+          records={records}
+          onRefresh={handleRefresh}
+          onLogout={handleLogout}
+          geofenceConfig={geofenceConfig}
+        />
+      );
+    }
   }
 
+  // ---- RENDER DESKTOP ----
   if (isAdmin) {
     return (
       <MainLayout
         user={user}
-        users={users.length > 0 ? users : INITIAL_USERS}
-        records={records}
-        onSelectUser={handleLogin}
         onLogout={handleLogout}
         activeTab={adminTab}
         onTabChange={setAdminTab}
-        onSelectReportPreset={setReportPreset}
-        geofenceConfig={geofenceConfig}
-        onRecordAttendance={(newRecord) => setRecords((prev) => [newRecord, ...prev])}
-        onSwitchToMobile={() => setForceViewMode('mobile')}
       >
         <AdminDashboard
           users={users}
@@ -293,22 +357,19 @@ function App() {
           onImportUsers={handleImportUsers}
           activeTab={adminTab}
           onTabChange={setAdminTab}
-          reportPreset={reportPreset}
-          onSelectReportPreset={setReportPreset}
         />
       </MainLayout>
     );
   }
 
+  // Guru / Pegawai Desktop
   return (
     <StaffDashboard
       user={user}
-      users={users.length > 0 ? users : INITIAL_USERS}
       records={records}
       onRefresh={handleRefresh}
       onLogout={handleLogout}
       geofenceConfig={geofenceConfig}
-      onRecordAttendance={(newRecord) => setRecords((prev) => [newRecord, ...prev])}
     />
   );
 }
