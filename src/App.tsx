@@ -315,7 +315,6 @@ function App() {
           onLogout={handleLogout}
           onNavigate={(tab) => {
             if (tab === 'desktop') {
-              // Bisa diarahkan ke desktop view atau reload dengan parameter
               window.location.href = window.location.origin + '?desktop=true';
             } else {
               setAdminTab(tab as any);
@@ -324,7 +323,6 @@ function App() {
         />
       );
     } else {
-      // Guru / Pegawai
       return (
         <MobileStaffDashboard
           user={user}
@@ -362,7 +360,6 @@ function App() {
     );
   }
 
-  // Guru / Pegawai Desktop
   return (
     <StaffDashboard
       user={user}
