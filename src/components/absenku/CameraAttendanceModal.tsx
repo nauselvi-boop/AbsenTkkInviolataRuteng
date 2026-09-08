@@ -24,7 +24,7 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
 
-  // Buka kamera
+  // Buka kamera saat modal terbuka
   useEffect(() => {
     if (isOpen) {
       startCamera();
@@ -106,10 +106,13 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <Camera className="w-5 h-5 text-emerald-600" />
-            Kamera Presensi TKK Inviolata
-          </h3>
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Camera className="w-5 h-5 text-emerald-600" />
+              Kamera Presensi TKK Inviolata
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">Selfie Wajah & Validasi GPS Otomatis</p>
+          </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-6 h-6" />
           </button>
@@ -117,16 +120,13 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
 
         {/* Body */}
         <div className="p-4 space-y-4">
-          {/* Subtitle */}
-          <p className="text-sm text-gray-500">Selfie Wajah & Validasi GPS Otomatis</p>
-
           {/* Informasi User */}
           <div className="bg-gray-50 rounded-xl p-3 text-sm">
             <p className="font-semibold text-gray-700">{user?.name || 'User'}</p>
             <p className="text-gray-500 text-xs">{user?.role} • NIP: {user?.nip || '-'}</p>
           </div>
 
-          {/* Pilihan Jenis Presensi */}
+          {/* Pilihan Jenis Presensi (static, sesuai screenshot) */}
           <div className="bg-blue-50 rounded-xl p-3 text-sm">
             <p className="font-semibold text-blue-800">PILIH JENIS PRESENSI:</p>
             <div className="flex gap-3 mt-2">
@@ -180,28 +180,26 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
             </span>
           </div>
 
-          {/* Informasi Waktu */}
-          <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-600">
-            <p>🕒 12:00:00 - 12:30:00 WITA</p>
+          {/* Informasi Waktu & Radius */}
+          <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1">
+            <p className="text-gray-600">🕒 12:00:00 - 12:30:00 WITA</p>
             <p className="text-red-600 font-semibold">⏰ LEWAT JAM PULANG</p>
-          </div>
-
-          {/* Lokasi Sekolah */}
-          <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-800">
-            <p className="font-semibold">📍 Di Luar Area</p>
-            <p className="text-xs">Maksimal radius 20 meter dari sekolah</p>
+            <div className="bg-amber-50 p-2 rounded-lg text-amber-800 text-xs mt-2">
+              <p className="font-semibold">📍 Di Luar Area</p>
+              <p>Maksimal radius 20 meter dari sekolah</p>
+            </div>
           </div>
 
           {/* Layanan Dispensasi */}
-          <div className="bg-purple-50 rounded-xl p-3 text-sm text-purple-800">
+          <div className="bg-purple-50 rounded-xl p-3 text-sm text-purple-800 space-y-2">
             <p className="font-semibold">📋 Layanan Dispensasi Admin</p>
             <p className="text-xs">Melewati batas ketentuan. Silakan ajukan ke Admin Utama (Sr. Maria Inviolata, S.Pd.).</p>
-            <button className="mt-2 bg-purple-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-700 transition">
+            <button className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition">
               Dispensasi Keterlambatan
             </button>
           </div>
 
-          {/* Tombol */}
+          {/* Tombol Aksi */}
           <button
             onClick={capturePhoto}
             disabled={!isCameraReady || isLoading || !!photo}
