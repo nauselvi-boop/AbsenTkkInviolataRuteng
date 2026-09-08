@@ -10,10 +10,6 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
-  Camera,
-  Calendar,
-  BarChart3,
-  Bell,
 } from 'lucide-react';
 
 interface MainLayoutProps {
@@ -33,120 +29,102 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const [isIzinOpen, setIsIzinOpen] = useState(false);
 
-  const menuGroups = [
+  const menuItems = [
+    { icon: <FileSpreadsheet className="w-4 h-4" />, label: 'Rekap Absensi Excel', tabId: 'laporan' },
+    { icon: <Users className="w-4 h-4" />, label: 'Data Guru & Pegawai', tabId: 'pengguna' },
+    { icon: <MapPin className="w-4 h-4" />, label: 'Lokasi GPS & Jam Sekolah', tabId: 'geofence' },
     {
-      title: 'KELOLA PENUH ADMIN',
-      items: [
-        { icon: <BarChart3 className="w-4 h-4" />, label: 'Rekapitulasi Absensi', tabId: 'monitoring' },
-        { icon: <Users className="w-4 h-4" />, label: 'Data Guru & Pegawai', tabId: 'pengguna' },
-        { icon: <MapPin className="w-4 h-4" />, label: 'Lokasi GPS & Jam Sekolah', tabId: 'geofence' },
-        {
-          icon: <CheckSquare className="w-4 h-4" />,
-          label: 'Persetujuan Izin & Kunci',
-          isDropdown: true,
-          subItems: [
-            { icon: <span className="w-4 h-4 text-emerald-400">▶</span>, label: 'Aktivasi Tombol Absen', tabId: 'aktivasi_absen' },
-            { icon: <span className="w-4 h-4 text-blue-400">▶</span>, label: 'Izin Tidak Masuk', tabId: 'izin_tidak_masuk' },
-          ],
-        },
-        { icon: <Camera className="w-4 h-4" />, label: 'Buka Kamera Presensi', tabId: 'camera' },
+      icon: <CheckSquare className="w-4 h-4" />,
+      label: 'Persetujuan Izin & Kunci',
+      isDropdown: true,
+      subItems: [
+        { icon: <span className="w-4 h-4 text-emerald-400">▶</span>, label: 'Aktivasi Tombol Absen', tabId: 'aktivasi_absen' },
+        { icon: <span className="w-4 h-4 text-blue-400">▶</span>, label: 'Izin Tidak Masuk', tabId: 'izin_tidak_masuk' },
       ],
     },
-    {
-      title: 'PENGUMUMAN SEKOLAH',
-      items: [
-        { icon: <Megaphone className="w-4 h-4" />, label: 'Pengumuman', tabId: 'pengumuman' },
-        { icon: <UserCog className="w-4 h-4" />, label: 'Profil & Password', tabId: 'profile' },
-      ],
-    },
+    { icon: <Megaphone className="w-4 h-4" />, label: 'Pengumuman Sekolah', tabId: 'pengumuman' },
+    { icon: <UserCog className="w-4 h-4" />, label: 'Profil & Password Admin', tabId: 'profile' },
   ];
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       {/* Sidebar */}
       <div className="w-64 bg-[#1a2e3b] text-white flex flex-col shrink-0 shadow-lg">
-        {/* Logo */}
         <div className="p-4 border-b border-gray-700">
           <div className="flex items-center gap-2">
             <School className="w-8 h-8 text-emerald-400" />
             <div>
               <span className="font-bold text-lg block">absenKU</span>
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider">Sistem Presensi Online</span>
+              <span className="text-[10px] text-gray-400 uppercase tracking-wider">SISTEM PRESENSI ONLINE</span>
             </div>
           </div>
           <p className="text-xs text-emerald-400 mt-1 font-semibold">TKK INVIOLATA RUTENG</p>
         </div>
 
-        {/* Menu */}
         <div className="flex-1 overflow-y-auto py-4 px-2">
-          {menuGroups.map((group, idx) => (
-            <div key={idx} className="mb-4">
-              <div className="px-3 py-1 text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
-                {group.title}
-              </div>
-              {group.items.map((item, i) => {
-                if (item.isDropdown) {
-                  return (
-                    <div key={i}>
-                      <button
-                        onClick={() => setIsIzinOpen(!isIzinOpen)}
-                        className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm transition ${
-                          activeTab === 'aktivasi_absen' || activeTab === 'izin_tidak_masuk'
-                            ? 'bg-emerald-600/20 text-white'
-                            : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {item.icon}
-                          <span>{item.label}</span>
-                        </div>
-                        {isIzinOpen ? (
-                          <ChevronDown className="w-4 h-4" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4" />
-                        )}
-                      </button>
-                      {isIzinOpen && (
-                        <div className="ml-6 mt-1 space-y-1">
-                          {item.subItems.map((sub) => (
-                            <button
-                              key={sub.tabId}
-                              onClick={() => onTabChange && onTabChange(sub.tabId)}
-                              className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition text-left ${
-                                activeTab === sub.tabId
-                                  ? 'bg-emerald-600/30 text-white'
-                                  : 'text-gray-400 hover:bg-white/10 hover:text-white'
-                              }`}
-                            >
-                              {sub.icon}
-                              <span>{sub.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-                return (
+          <div className="px-3 py-1 text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+            KELOLA PENUH ADMIN
+          </div>
+          {menuItems.map((item, idx) => {
+            if (item.isDropdown) {
+              return (
+                <div key={idx}>
                   <button
-                    key={item.tabId}
-                    onClick={() => onTabChange && onTabChange(item.tabId)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
-                      activeTab === item.tabId
-                        ? 'bg-emerald-600/30 text-white'
+                    onClick={() => setIsIzinOpen(!isIzinOpen)}
+                    className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm transition ${
+                      activeTab === 'aktivasi_absen' || activeTab === 'izin_tidak_masuk'
+                        ? 'bg-emerald-600/20 text-white'
                         : 'text-gray-300 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    {item.icon}
-                    <span>{item.label}</span>
+                    <div className="flex items-center gap-3">
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </div>
+                    {isIzinOpen ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
                   </button>
-                );
-              })}
-            </div>
-          ))}
+                  {isIzinOpen && (
+                    <div className="ml-6 mt-1 space-y-1">
+                      {item.subItems.map((sub) => (
+                        <button
+                          key={sub.tabId}
+                          onClick={() => onTabChange && onTabChange(sub.tabId)}
+                          className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition text-left ${
+                            activeTab === sub.tabId
+                              ? 'bg-emerald-600/30 text-white'
+                              : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {sub.icon}
+                          <span>{sub.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <button
+                key={item.tabId}
+                onClick={() => onTabChange && onTabChange(item.tabId)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
+                  activeTab === item.tabId
+                    ? 'bg-emerald-600/30 text-white'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Profil & Logout */}
         <div className="p-4 border-t border-gray-700">
           <div className="flex items-center gap-3 mb-3">
             <img
