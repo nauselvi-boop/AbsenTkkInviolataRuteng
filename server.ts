@@ -44,8 +44,8 @@ function getDb() {
 let inMemoryGeofence = {
   id: 1,
   schoolName: 'TKK Inviolata Ruteng',
-  latitude: -8.6135,
-  longitude: 120.4689,
+  latitude: -8.6165151,
+  longitude: 120.4608927,
   radiusMeters: 50,
   checkInStartTime: '06:30',
   checkInDeadlineTime: '07:15',
