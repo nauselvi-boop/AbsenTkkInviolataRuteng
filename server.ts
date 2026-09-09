@@ -53,7 +53,7 @@ let inMemoryGeofence = {
   checkOutDeadlineTime: '15:30',
 };
 
-let inMemoryUsers = [
+let inMemoryUsers: any[] = [
   {
     id: 1,
     nip: '198804152014022003',
@@ -118,7 +118,7 @@ let inMemoryUsers = [
 
 const todayDateStr = new Date().toISOString().split('T')[0];
 
-let inMemoryAttendance = [
+let inMemoryAttendance: any[] = [
   {
     id: 1,
     user_id: 2,
@@ -163,7 +163,7 @@ let inMemoryAttendance = [
   },
 ];
 
-let inMemoryIzin = [
+let inMemoryIzin: any[] = [
   {
     id: 1,
     user_id: 4,
@@ -755,6 +755,80 @@ app.post('/api/attendance', async (req, res) => {
       data: existing,
       type: 'check-out',
     });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Re-activate attendance button endpoint
+app.post('/api/attendance/activate', async (req, res) => {
+  try {
+    const { user_id, date } = req.body;
+    if (!user_id || !date) {
+      return res.status(400).json({ success: false, error: 'user_id dan date wajib diisi' });
+    }
+
+    const formattedDate = date.includes('T') ? date.split('T')[0] : date;
+    const existingIndex = inMemoryAttendance.findIndex(
+      (a) => String(a.user_id) === String(user_id) && a.attendance_date === formattedDate
+    );
+
+    if (existingIndex !== -1) {
+      inMemoryAttendance[existingIndex].check_out_time = null;
+      inMemoryAttendance[existingIndex].updated_at = new Date().toISOString();
+    } else {
+      const user = inMemoryUsers.find((u) => String(u.id) === String(user_id));
+      inMemoryAttendance.unshift({
+        id: inMemoryAttendance.length > 0 ? Math.max(...inMemoryAttendance.map((x) => Number(x.id) || 0)) + 1 : 1,
+        user_id: Number(user_id),
+        attendance_date: formattedDate,
+        check_in_time: new Date().toISOString(),
+        check_in_lat: inMemoryGeofence.latitude,
+        check_in_lng: inMemoryGeofence.longitude,
+        check_in_photo_path: user?.avatarUrl || null,
+        check_in_ip_address: req.ip || '127.0.0.1',
+        check_out_time: null,
+        check_out_lat: null,
+        check_out_lng: null,
+        check_out_photo_path: null,
+        check_out_ip_address: null,
+        status: 'pending',
+        notes: 'Tombol absen diaktifkan kembali oleh Admin',
+        location: 'Area TKK Inviolata Ruteng',
+        verified_by: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user_name: user?.name || 'Staf',
+        nip: user?.nip || '1988000000000',
+        user_role: user?.role || 'GURU',
+      });
+    }
+
+    const sql = getDb();
+    if (sql) {
+      try {
+        const existing = await sql`
+          SELECT id, check_out_time FROM attendance
+          WHERE user_id = ${user_id} AND attendance_date = ${formattedDate}
+        `;
+        if (existing.length > 0) {
+          await sql`
+            UPDATE attendance
+            SET check_out_time = NULL, updated_at = NOW()
+            WHERE id = ${existing[0].id}
+          `;
+        } else {
+          await sql`
+            INSERT INTO attendance (user_id, attendance_date, status, created_at, updated_at)
+            VALUES (${user_id}, ${formattedDate}, 'pending', NOW(), NOW())
+          `;
+        }
+      } catch (dbErr) {
+        console.warn('[API] Activate attendance DB fallback:', (dbErr as Error).message);
+      }
+    }
+
+    return res.status(200).json({ success: true, message: 'Tombol absen diaktifkan kembali' });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error.message });
   }
