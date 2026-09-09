@@ -163,18 +163,64 @@ let inMemoryAttendance: any[] = [
   },
 ];
 
+const sampleSuratTugasSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="100%" height="100%"><rect width="600" height="800" fill="%23ffffff"/><rect x="25" y="25" width="550" height="750" fill="none" stroke="%232b6cb0" stroke-width="2"/><line x1="45" y1="125" x2="555" y2="125" stroke="%231a365d" stroke-width="3"/><line x1="45" y1="129" x2="555" y2="129" stroke="%231a365d" stroke-width="1"/><text x="300" y="65" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="%231a365d">PEMERINTAH KABUPATEN MANGGARAI</text><text x="300" y="85" font-family="sans-serif" font-size="16" font-weight="900" text-anchor="middle" fill="%230f172a">DINAS PENDIDIKAN, KEPEMUDAAN &amp; OLAHRAGA</text><text x="300" y="105" font-family="sans-serif" font-size="11" text-anchor="middle" fill="%23475569">Jl. Motang Rua No. 12, Ruteng, Flores, Nusa Tenggara Timur</text><text x="300" y="170" font-family="sans-serif" font-size="16" font-weight="bold" text-anchor="middle" text-decoration="underline" fill="%230f172a">SURAT TUGAS RESMI BIMTEK PAUD</text><text x="300" y="190" font-family="sans-serif" font-size="12" text-anchor="middle" fill="%2364748b">Nomor: 421.1/Disdik-PAUD/089/IX/2026</text><text x="60" y="240" font-family="sans-serif" font-size="13" fill="%231e293b">Dinas Pendidikan Kabupaten Manggarai menugaskan kepada:</text><text x="80" y="280" font-family="sans-serif" font-size="13" font-weight="bold" fill="%230f172a">Nama: Ibu Fransiska Murni, S.Pd. AUD</text><text x="80" y="305" font-family="sans-serif" font-size="12" fill="%23334155">NIP: 199209202019032005</text><text x="80" y="330" font-family="sans-serif" font-size="12" fill="%23334155">Jabatan: Guru Kelas TKK Inviolata Ruteng</text><text x="60" y="380" font-family="sans-serif" font-size="13" fill="%231e293b">Untuk mengikuti Kegiatan Pelatihan:</text><rect x="60" y="400" width="480" height="75" rx="8" fill="%23f0f9ff" stroke="%23bae6fd"/><text x="80" y="430" font-family="sans-serif" font-size="13" font-weight="bold" fill="%230369a1">Workshop Kurikulum Merdeka Jenjang PAUD Se-Kabupaten</text><text x="80" y="455" font-family="sans-serif" font-size="12" fill="%230284c7">Tempat: Aula Wisma Maria Golowoi, Ruteng</text><text x="60" y="520" font-family="sans-serif" font-size="12" fill="%23334155">Demikian surat tugas ini diterbitkan agar dapat dipergunakan sebagaimana mestinya.</text><text x="390" y="610" font-family="sans-serif" font-size="12" fill="%231e293b">Ruteng, 8 September 2026</text><text x="390" y="630" font-family="sans-serif" font-size="12" font-weight="bold" fill="%230f172a">a.n. Kepala Dinas PPO,</text><circle cx="350" cy="670" r="32" fill="%23ef4444" fill-opacity="0.15" stroke="%23ef4444" stroke-width="2"/><text x="350" y="675" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="middle" fill="%23dc2626">CAP DINAS</text><text x="390" y="720" font-family="sans-serif" font-size="12" font-weight="bold" fill="%230f172a">Drs. Fransiskus Xaverius, M.Pd.</text><text x="390" y="735" font-family="sans-serif" font-size="11" fill="%2364748b">Pembina Utama Muda - NIP. 196803121994031004</text></svg>`;
+
+const sampleSuratDokterSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="100%" height="100%"><rect width="600" height="800" fill="%23ffffff"/><rect x="25" y="25" width="550" height="750" fill="none" stroke="%23059669" stroke-width="2"/><line x1="45" y1="120" x2="555" y2="120" stroke="%23065f46" stroke-width="3"/><text x="300" y="60" font-family="sans-serif" font-size="15" font-weight="bold" text-anchor="middle" fill="%23065f46">KLINIK PRATAMA ST. RAFAEL RUTENG</text><text x="300" y="80" font-family="sans-serif" font-size="12" text-anchor="middle" fill="%23047857">PELAYANAN KESEHATAN UMUM &amp; KELUARGA</text><text x="300" y="100" font-family="sans-serif" font-size="11" text-anchor="middle" fill="%2364748b">Jl. Katedral No. 04, Ruteng, Flores, NTT | Telp (0385) 21345</text><text x="300" y="165" font-family="sans-serif" font-size="16" font-weight="bold" text-anchor="middle" text-decoration="underline" fill="%230f172a">SURAT KETERANGAN DOKTER (ISTIRAHAT SAKIT)</text><text x="300" y="185" font-family="sans-serif" font-size="11" text-anchor="middle" fill="%2364748b">No: 582/SKD/KSR/IX/2026</text><text x="60" y="235" font-family="sans-serif" font-size="13" fill="%231e293b">Menerangkan dengan sebenarnya bahwa:</text><text x="80" y="275" font-family="sans-serif" font-size="13" font-weight="bold" fill="%230f172a">Nama Pasien: Ibu Maria Goreti, S.Pd.</text><text x="80" y="300" font-family="sans-serif" font-size="12" fill="%23334155">Unit Kerja: Guru Sentra Balok &amp; Sains TKK Inviolata</text><text x="80" y="325" font-family="sans-serif" font-size="12" fill="%23334155">Diagnosa Medis: Febris &amp; Faringitis Akut (Demam 38.8 C &amp; Radang Tenggorokan)</text><text x="60" y="380" font-family="sans-serif" font-size="13" fill="%231e293b">Perlu istirahat memulihkan kesehatan selama:</text><rect x="60" y="405" width="480" height="55" rx="8" fill="%23ecfdf5" stroke="%23a7f3d0"/><text x="80" y="440" font-family="sans-serif" font-size="14" font-weight="bold" fill="%23065f46">2 (Dua) Hari, terhitung tanggal 8 s.d 9 September 2026</text><text x="60" y="505" font-family="sans-serif" font-size="12" fill="%23334155">Demikian surat keterangan ini dibuat untuk dipergunakan sebagai lampiran izin resmi sekolah.</text><text x="390" y="600" font-family="sans-serif" font-size="12" fill="%231e293b">Ruteng, 8 September 2026</text><text x="390" y="620" font-family="sans-serif" font-size="12" font-weight="bold" fill="%230f172a">Dokter Pemeriksa,</text><circle cx="350" cy="660" r="32" fill="%23059669" fill-opacity="0.15" stroke="%23059669" stroke-width="2"/><text x="350" y="665" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="middle" fill="%23047857">KLINIK RAFAEL</text><text x="390" y="710" font-family="sans-serif" font-size="12" font-weight="bold" fill="%230f172a">dr. Stefanus Jemadu, Sp.A</text><text x="390" y="725" font-family="sans-serif" font-size="11" fill="%2364748b">SIP: 446/SIP-D/2021/045</text></svg>`;
+
 let inMemoryIzin: any[] = [
   {
     id: 1,
-    user_id: 4,
-    user_name: 'Ibu Fransiska Murni, S.Pd. AUD',
-    user_nip: '199209202019032005',
-    type: 'izin',
-    reason: 'Menghadiri pelatihan kurikulum merdeka PAUD tingkat Kabupaten Manggarai di Ruteng',
+    user_id: 2,
+    user_name: 'Ibu Yuliana Nona, S.Pd.',
+    user_nip: '198903142015042001',
+    type: 'terlambat_masuk',
+    reason: 'Kendaraan motor mengalami kendala rantai di jalan raya Kalo - Ruteng saat membawa sarana sentra anak-anak',
     date: todayDateStr,
     status: 'pending',
     admin_notes: null,
     attachment: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    user_id: 3,
+    user_name: 'Bpk. Yohanes Berchmans, S.Kom.',
+    user_nip: '198807172016042005',
+    type: 'terlambat_masuk',
+    reason: 'Membeli perlengkapan kertas karton, gunting & lem sentra mendesak di toko buku ATK Ruteng sebelum ke sekolah',
+    date: todayDateStr,
+    status: 'pending',
+    admin_notes: null,
+    attachment: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    user_id: 4,
+    user_name: 'Ibu Fransiska Murni, S.Pd. AUD',
+    user_nip: '199209202019032005',
+    type: 'tidak_masuk',
+    reason: 'Menghadiri undangan resmi Bimbingan Teknis Kurikulum Merdeka PAUD tingkat Kabupaten Manggarai di Wisma Maria Golowoi Ruteng',
+    date: todayDateStr,
+    status: 'pending',
+    admin_notes: null,
+    attachment: sampleSuratTugasSvg,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 4,
+    user_id: 5,
+    user_name: 'Ibu Maria Goreti, S.Pd.',
+    user_nip: '199511082020122003',
+    type: 'tidak_masuk',
+    reason: 'Sakit demam tinggi dan radang tenggorokan akut, istirahat berobat berdasarkan anjuran dokter Klinik St. Rafael Ruteng selama 2 hari',
+    date: todayDateStr,
+    status: 'pending',
+    admin_notes: null,
+    attachment: sampleSuratDokterSvg,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -765,66 +811,77 @@ const inMemoryActiveUnlocks = new Map<string, boolean>();
 // Re-activate attendance button endpoint
 app.post('/api/attendance/activate', async (req, res) => {
   try {
-    const { user_id, date } = req.body;
+    const { user_id, date, izin_id, action = 'activate' } = req.body;
     if (!user_id || !date) {
       return res.status(400).json({ success: false, error: 'user_id dan date wajib diisi' });
     }
 
     const formattedDate = date.includes('T') ? date.split('T')[0] : date;
-    inMemoryActiveUnlocks.set(`${user_id}_${formattedDate}`, true);
+    const unlockKey = `${user_id}_${formattedDate}`;
 
+    if (action === 'deactivate') {
+      inMemoryActiveUnlocks.delete(unlockKey);
+
+      // Kembalikan status izin jika ada
+      if (izin_id) {
+        const iz = inMemoryIzin.find((i) => String(i.id) === String(izin_id));
+        if (iz) {
+          iz.status = 'pending';
+          iz.admin_notes = null;
+          iz.updated_at = new Date().toISOString();
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Tombol absen berhasil dikunci kembali',
+        status: 'locked',
+      });
+    }
+
+    // ACTIVATE
+    inMemoryActiveUnlocks.set(unlockKey, true);
+
+    // Update data permohonan izin jika ada
+    if (izin_id) {
+      const iz = inMemoryIzin.find((i) => String(i.id) === String(izin_id));
+      if (iz) {
+        iz.status = 'approved';
+        iz.admin_notes = 'Tombol absen telah diaktifkan oleh Admin Utama (Sr. Maria Inviolata)';
+        iz.updated_at = new Date().toISOString();
+      }
+    } else {
+      // Cari izin terlambat hari ini untuk guru/pegawai ini
+      inMemoryIzin.forEach((iz) => {
+        if (
+          String(iz.user_id) === String(user_id) &&
+          (iz.date === formattedDate || iz.date?.startsWith(formattedDate)) &&
+          iz.status === 'pending'
+        ) {
+          iz.status = 'approved';
+          iz.admin_notes = 'Tombol absen telah diaktifkan oleh Admin Utama (Sr. Maria Inviolata)';
+          iz.updated_at = new Date().toISOString();
+        }
+      });
+    }
+
+    // Jika user sebelumnya terblokir karena check_out_time, reset check_out_time
     const existingIndex = inMemoryAttendance.findIndex(
       (a) => String(a.user_id) === String(user_id) && a.attendance_date === formattedDate
     );
-
-    if (existingIndex !== -1) {
+    if (existingIndex !== -1 && inMemoryAttendance[existingIndex].check_out_time) {
       inMemoryAttendance[existingIndex].check_out_time = null;
       inMemoryAttendance[existingIndex].updated_at = new Date().toISOString();
-    } else {
-      const user = inMemoryUsers.find((u) => String(u.id) === String(user_id));
-      inMemoryAttendance.unshift({
-        id: inMemoryAttendance.length > 0 ? Math.max(...inMemoryAttendance.map((x) => Number(x.id) || 0)) + 1 : 1,
-        user_id: Number(user_id),
-        attendance_date: formattedDate,
-        check_in_time: new Date().toISOString(),
-        check_in_lat: inMemoryGeofence.latitude,
-        check_in_lng: inMemoryGeofence.longitude,
-        check_in_photo_path: user?.avatarUrl || null,
-        check_in_ip_address: req.ip || '127.0.0.1',
-        check_out_time: null,
-        check_out_lat: null,
-        check_out_lng: null,
-        check_out_photo_path: null,
-        check_out_ip_address: null,
-        status: 'pending',
-        notes: 'Tombol absen diaktifkan kembali oleh Admin',
-        location: 'Area TKK Inviolata Ruteng',
-        verified_by: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        user_name: user?.name || 'Staf',
-        nip: user?.nip || '1988000000000',
-        user_role: user?.role || 'GURU',
-      });
     }
 
     const sql = getDb();
     if (sql) {
       try {
-        const existing = await sql`
-          SELECT id, check_out_time FROM attendance
-          WHERE user_id = ${user_id} AND attendance_date = ${formattedDate}
-        `;
-        if (existing.length > 0) {
+        if (izin_id) {
           await sql`
-            UPDATE attendance
-            SET check_out_time = NULL, updated_at = NOW()
-            WHERE id = ${existing[0].id}
-          `;
-        } else {
-          await sql`
-            INSERT INTO attendance (user_id, attendance_date, status, created_at, updated_at)
-            VALUES (${user_id}, ${formattedDate}, 'pending', NOW(), NOW())
+            UPDATE izin_dispensasi
+            SET status = 'approved', admin_notes = 'Tombol absen telah diaktifkan oleh Admin Utama (Sr. Maria Inviolata)', updated_at = NOW()
+            WHERE id = ${parseInt(izin_id)}
           `;
         }
       } catch (dbErr) {
@@ -832,7 +889,11 @@ app.post('/api/attendance/activate', async (req, res) => {
       }
     }
 
-    return res.status(200).json({ success: true, message: 'Tombol absen diaktifkan kembali' });
+    return res.status(200).json({
+      success: true,
+      message: 'Tombol absen berhasil diaktifkan. Pengguna sekarang dapat melakukan presensi.',
+      status: 'unlocked',
+    });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -1012,6 +1073,74 @@ app.put('/api/izin', async (req, res) => {
     }
 
     return res.status(200).json({ success: true, data: item });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/izin', async (req, res) => {
+  try {
+    const id = req.query.id || req.body?.id;
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'ID izin wajib disertakan.' });
+    }
+
+    const index = inMemoryIzin.findIndex((i) => String(i.id) === String(id));
+    if (index === -1) {
+      return res.status(404).json({ success: false, error: 'Data permohonan izin tidak ditemukan.' });
+    }
+
+    const deletedItem = inMemoryIzin.splice(index, 1)[0];
+
+    const sql = getDb();
+    if (sql) {
+      try {
+        await sql`
+          DELETE FROM izin_dispensasi
+          WHERE id = ${parseInt(String(id))}
+        `;
+      } catch (dbErr) {
+        console.warn('[API] Delete izin DB fallback:', (dbErr as Error).message);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Data permohonan izin berhasil dihapus.',
+      data: deletedItem,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/izin/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const index = inMemoryIzin.findIndex((i) => String(i.id) === String(id));
+    if (index === -1) {
+      return res.status(404).json({ success: false, error: 'Data permohonan izin tidak ditemukan.' });
+    }
+
+    const deletedItem = inMemoryIzin.splice(index, 1)[0];
+
+    const sql = getDb();
+    if (sql) {
+      try {
+        await sql`
+          DELETE FROM izin_dispensasi
+          WHERE id = ${parseInt(String(id))}
+        `;
+      } catch (dbErr) {
+        console.warn('[API] Delete izin DB fallback:', (dbErr as Error).message);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Data permohonan izin berhasil dihapus.',
+      data: deletedItem,
+    });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error.message });
   }

@@ -130,7 +130,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       if (resUnlock.ok) {
         const d = await resUnlock.json();
         if (d.success && Array.isArray(d.data)) {
-          setIsUnlockedByAdmin(d.data.includes(String(user?.id)));
+          setIsUnlockedByAdmin(d.data.map(String).includes(String(user?.id)));
         }
       }
 
@@ -465,15 +465,25 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       if (currentTime < inStart) {
         warningMessage = `⏳ Belum waktunya absen masuk. Buka pukul ${geofenceConfig.checkInStartTime} WITA.`;
       } else if (currentTime > inDeadline) {
-        warningMessage = `⏰ Anda terlambat! Batas waktu masuk pukul ${geofenceConfig.checkInDeadlineTime} WITA. Silakan ajukan izin.`;
-        showIzinButton = true;
+        if (isUnlockedByAdmin) {
+          warningMessage = `✅ Dispensasi Keterlambatan Disetujui! Tombol absen telah diaktifkan oleh Admin Utama. Silakan klik 'Absen Datang' di bawah.`;
+          showIzinButton = false;
+        } else {
+          warningMessage = `⏰ Anda terlambat! Batas waktu masuk pukul ${geofenceConfig.checkInDeadlineTime} WITA. Tombol absen terkunci. Silakan ajukan izin keterlambatan agar Admin Utama mengaktifkan tombol absen Anda.`;
+          showIzinButton = true;
+        }
       }
     } else if (hasCheckedIn && !hasCheckedOut) {
       if (currentTime < outStart) {
         warningMessage = `⏳ Belum waktunya absen pulang. Buka pukul ${geofenceConfig.checkOutStartTime || '12:30'} WITA.`;
       } else if (currentTime > outDeadline) {
-        warningMessage = `⏰ Anda terlambat pulang! Batas waktu pulang pukul ${geofenceConfig.checkOutDeadlineTime || '15:30'} WITA. Silakan ajukan izin.`;
-        showIzinButton = true;
+        if (isUnlockedByAdmin) {
+          warningMessage = `✅ Dispensasi Disetujui Admin! Silakan lakukan absen pulang.`;
+          showIzinButton = false;
+        } else {
+          warningMessage = `⏰ Anda terlambat pulang! Batas waktu pulang pukul ${geofenceConfig.checkOutDeadlineTime || '15:30'} WITA. Silakan ajukan izin ke Admin Utama.`;
+          showIzinButton = true;
+        }
       }
     }
 
@@ -531,14 +541,22 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
               </p>
               <button
                 onClick={() => handlePresensi('masuk')}
-                disabled={isLoading || hasCheckedIn || currentTime > inDeadline}
-                className={`mt-2 w-full py-2 rounded-xl font-bold text-sm transition ${
-                  hasCheckedIn || currentTime > inDeadline
+                disabled={isLoading || hasCheckedIn || (currentTime > inDeadline && !isUnlockedByAdmin)}
+                className={`mt-2 w-full py-2.5 rounded-xl font-bold text-sm transition ${
+                  hasCheckedIn || (currentTime > inDeadline && !isUnlockedByAdmin)
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : isUnlockedByAdmin
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md ring-2 ring-emerald-400'
                     : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                 }`}
               >
-                {isLoading ? 'Memproses...' : '📸 Absen Datang'}
+                {isLoading
+                  ? 'Memproses...'
+                  : hasCheckedIn
+                  ? '✓ Sudah Absen Datang'
+                  : isUnlockedByAdmin
+                  ? '🔓 Absen Datang (Diaktifkan Admin)'
+                  : '📸 Absen Datang'}
               </button>
             </div>
 
@@ -552,14 +570,20 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
               </p>
               <button
                 onClick={() => handlePresensi('pulang')}
-                disabled={isLoading || !hasCheckedIn || hasCheckedOut || currentTime > outDeadline}
-                className={`mt-2 w-full py-2 rounded-xl font-bold text-sm transition ${
-                  !hasCheckedIn || hasCheckedOut || currentTime > outDeadline
+                disabled={isLoading || !hasCheckedIn || hasCheckedOut || (currentTime > outDeadline && !isUnlockedByAdmin)}
+                className={`mt-2 w-full py-2.5 rounded-xl font-bold text-sm transition ${
+                  !hasCheckedIn || hasCheckedOut || (currentTime > outDeadline && !isUnlockedByAdmin)
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }`}
               >
-                {isLoading ? 'Memproses...' : '🏠 Absen Pulang'}
+                {isLoading
+                  ? 'Memproses...'
+                  : hasCheckedOut
+                  ? '✓ Sudah Absen Pulang'
+                  : isUnlockedByAdmin
+                  ? '🔓 Absen Pulang (Diaktifkan Admin)'
+                  : '🏠 Absen Pulang'}
               </button>
             </div>
 

@@ -82,10 +82,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     { icon: <MapPin className="w-4 h-4" />, label: 'Lokasi GPS & Jam Sekolah', tabId: 'geofence' },
     {
       icon: <CheckSquare className="w-4 h-4" />,
-      label: 'Persetujuan Izin & Kunci',
+      label: 'Persetujuan & Izin',
       isDropdown: true,
       subItems: [
-        { icon: <span className="w-4 h-4 text-emerald-400">▶</span>, label: 'Aktivasi Tombol Absen', tabId: 'aktivasi_absen' },
+        { icon: <span className="w-4 h-4 text-emerald-400">▶</span>, label: 'Izin Terlambat', tabId: 'izin_terlambat' },
         { icon: <span className="w-4 h-4 text-blue-400">▶</span>, label: 'Izin Tidak Masuk', tabId: 'izin_tidak_masuk' },
       ],
     },
@@ -237,7 +237,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             </div>
             {menuItems.map((item, idx) => {
               if (item.isDropdown) {
-                const isSubActive = activeTab === 'aktivasi_absen' || activeTab === 'izin_tidak_masuk';
+                const isSubActive =
+                  activeTab === 'aktivasi_absen' ||
+                  activeTab === 'izin_terlambat' ||
+                  activeTab === 'izin_tidak_masuk';
                 return (
                   <div key={idx} className="space-y-1">
                     <button
