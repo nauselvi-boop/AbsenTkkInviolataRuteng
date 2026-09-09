@@ -4,6 +4,11 @@ import { GeofenceMap } from './GeofenceMap';
 import { AttendanceReports } from './AttendanceReports';
 import { UserManagement } from './UserManagement';
 import { AdminGeofenceSettings } from './AdminGeofenceSettings';
+import { ActionMenuGrid } from './absenku/ActionMenuGrid';
+import { TrackingLocationCard } from './absenku/TrackingLocationCard';
+import { ReportRealtimeTable } from './absenku/ReportRealtimeTable';
+import { AbsenKuLogo } from './absenku/AbsenKuLogo';
+import { SelfieDetailModal, ProfilSekolahModal } from './absenku/AbsenKuModals';
 import {
   Activity,
   Users,
@@ -97,31 +102,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [izinRequests, setIzinRequests] = useState<IzinRequest[]>([]);
   const [izinLoading, setIzinLoading] = useState(false);
 
+  // ===== STATE MODAL & DETAIL =====
+  const [selectedSelfieRecord, setSelectedSelfieRecord] = useState<AttendanceRecord | null>(null);
+  const [isProfilModalOpen, setIsProfilModalOpen] = useState(false);
+
   // ===== STATE PENGUMUMAN =====
-  const [announcements, setAnnouncements] = useState<Announcement[]>([
-    {
-      id: '1',
-      title: 'Libur Nasional',
-      content: 'Upacara Kemerdekaan 17 Agustus 2026',
-      date: '2026-08-17',
-      isPinned: true,
-    },
-    {
-      id: '2',
-      title: 'Rapat Guru',
-      content: 'Jumat, 11 September 2026 pukul 13:00 WITA',
-      date: '2026-09-11',
-      isPinned: false,
-    },
-  ]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', date: '' });
 
-  // ===== FETCH IZIN =====
+  // ===== FETCH IZIN & ANNOUNCEMENTS =====
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'izin_tidak_masuk' || activeTab === 'aktivasi_absen') {
       fetchIzin();
     }
+    if (activeTab === 'pengumuman' || activeTab === 'monitoring') {
+      fetchAnnouncements();
+    }
   }, [activeTab]);
+
+  const fetchAnnouncements = async () => {
+    try {
+      const res = await fetch('/api/announcements');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setAnnouncements(data.data);
+        }
+      }
+    } catch (error) {
+      console.warn('Gagal fetch pengumuman:', error);
+    }
+  };
 
   const fetchIzin = async () => {
     setIzinLoading(true);
@@ -201,26 +216,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  const handleAddAnnouncement = () => {
+  const handleAddAnnouncement = async () => {
     if (!newAnnouncement.title || !newAnnouncement.content) {
       alert('Judul dan konten wajib diisi.');
       return;
     }
-    const newItem: Announcement = {
-      id: Date.now().toString(),
-      title: newAnnouncement.title,
-      content: newAnnouncement.content,
-      date: newAnnouncement.date || new Date().toISOString().split('T')[0],
-      isPinned: false,
-    };
-    setAnnouncements([newItem, ...announcements]);
-    setNewAnnouncement({ title: '', content: '', date: '' });
-    alert('✅ Pengumuman berhasil ditambahkan.');
+    try {
+      const res = await fetch('/api/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newAnnouncement.title,
+          content: newAnnouncement.content,
+          date: newAnnouncement.date || new Date().toISOString().split('T')[0],
+          isPinned: false,
+          author: 'Sr. Maria Inviolata, S.Pd. (Admin Utama)',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchAnnouncements();
+        setNewAnnouncement({ title: '', content: '', date: '' });
+        alert('✅ Pengumuman berhasil dipublikasikan ke Guru & Pegawai!');
+      } else {
+        alert('❌ Gagal tambah pengumuman: ' + data.error);
+      }
+    } catch (error: any) {
+      alert('❌ Error: ' + error.message);
+    }
   };
 
-  const handleDeleteAnnouncement = (id: string) => {
+  const handleDeleteAnnouncement = async (id: string) => {
     if (confirm('Hapus pengumuman ini?')) {
-      setAnnouncements(prev => prev.filter(a => a.id !== id));
+      try {
+        const res = await fetch(`/api/announcements/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          await fetchAnnouncements();
+        }
+      } catch (error) {
+        console.error('Gagal hapus pengumuman:', error);
+      }
     }
   };
 
@@ -263,120 +298,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // ===== DASHBOARD UTAMA – LAYOUT BARU (SESUAI GAMBAR) =====
+  // ===== DASHBOARD UTAMA – LAYOUT PERSIS SEPERTI GAMBAR (LAPTOP) =====
   const renderMonitoring = () => {
-    const adminUser = users.find(u => u.role === 'ADMIN');
-
     return (
       <div className="space-y-6">
-        {/* Grid 3 Kartu Utama */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-purple-100 rounded-full">
-                <Users className="w-8 h-8 text-purple-600" />
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-800 text-lg">Data Guru & Pegawai</h4>
-                <p className="text-sm text-gray-500">Pendidik & Tenaga Kependidikan TKK</p>
-                <button onClick={() => onTabChange('pengguna')} className="mt-3 text-sm text-emerald-600 font-semibold hover:underline">
-                  Kelola →
-                </button>
-              </div>
+        {/* Banner Kartu Header @absenku profesional */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <AbsenKuLogo variant="large" />
+            <div className="border-l border-slate-200 pl-4">
+              <h2 className="text-xs uppercase font-extrabold tracking-widest text-[#0088cc]">
+                SISTEM PRESENSI ONLINE TKK INVIOLATA RUTENG
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Monitoring Realtime Kehadiran Guru & Pegawai berbasis Face Selfie & GPS Geofence
+              </p>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-emerald-100 rounded-full">
-                <FileSpreadsheet className="w-8 h-8 text-emerald-600" />
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-800 text-lg">Rekap Absensi TK</h4>
-                <p className="text-sm text-gray-500">Laporan Kehadiran & Unduh Excel</p>
-                <button onClick={() => onTabChange('laporan')} className="mt-3 text-sm text-emerald-600 font-semibold hover:underline">
-                  Lihat →
-                </button>
-              </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl text-blue-900 flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-[#0088cc]" />
+              <span><strong>{totalStaffCount}</strong> Guru & Pegawai</span>
             </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-indigo-100 rounded-full">
-                <MapPin className="w-8 h-8 text-indigo-600" />
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-800 text-lg">Lokasi & Jam Kerja</h4>
-                <p className="text-sm text-gray-500">Geofence GPS TKK Inviolata & Jadwal</p>
-                <button onClick={() => onTabChange('geofence')} className="mt-3 text-sm text-emerald-600 font-semibold hover:underline">
-                  Atur →
-                </button>
-              </div>
+            <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-emerald-900 flex items-center gap-1.5">
+              <UserCheck className="w-4 h-4 text-emerald-600" />
+              <span><strong>{presentCount}</strong> Hadir</span>
+            </div>
+            <div className="bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl text-rose-900 flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-rose-600" />
+              <span><strong>{absentCount}</strong> Belum Hadir</span>
             </div>
           </div>
         </div>
 
-        {/* Kartu Admin, Jadwal, Pengumuman */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h4 className="font-bold text-gray-800 flex items-center gap-2">
-              <Award className="w-5 h-5 text-emerald-600" />
-              Admin Utama
-            </h4>
-            <p className="text-sm text-gray-700 mt-2 font-semibold">{adminUser?.name || 'Sr. Maria Inviolata, S.Pd.'}</p>
-            <p className="text-xs text-gray-500">{adminUser?.email || 'admin@tkkinviolata.sch.id'}</p>
-          </div>
+        {/* 2-Column Grid: Action Menu (Left) & Tracking Location (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Action Menu Grid (7 Columns) */}
+          <div className="lg:col-span-7 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0088cc]"></span>
+                <span>Menu Navigasi Utama Admin</span>
+              </h3>
+              <span className="text-[11px] text-slate-500">Klik menu untuk mengakses fitur</span>
+            </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h4 className="font-bold text-gray-800 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-blue-600" />
-              Jadwal Sentra & KBM
-            </h4>
-            <p className="text-sm text-gray-600 mt-2">Sentra Balok, Alam, Seni & Rohani</p>
-            <p className="text-xs text-gray-400 mt-1">Kurikulum Merdeka</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h4 className="font-bold text-gray-800 flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-amber-600" />
-              Pengumuman Sekolah
-            </h4>
-            <p className="text-sm text-gray-600 mt-2">Agenda Kegiatan & Informasi TKK</p>
-            <button onClick={() => onTabChange('pengumuman')} className="mt-2 text-sm text-emerald-600 font-semibold hover:underline">
-              Baca →
-            </button>
-          </div>
-        </div>
-
-        {/* Tracking Lokasi & Peta */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2 mb-4">
-            <MapPin className="w-5 h-5 text-emerald-600" />
-            Tracking Lokasi Guru TKK Inviolata
-          </h3>
-
-          <div className="bg-gray-50 p-3 rounded-xl mb-4">
-            <p className="font-semibold text-gray-700 text-sm">
-              Nama: Ibu Yuliana Nardi, S.Pd. (Guru Kelompok A (TK-A))
-            </p>
-            <p className="text-xs text-gray-500">Tugas / Sentra: Guru Kelompok A (TK-A)</p>
-            <p className="text-xs text-emerald-600 font-medium">Waktu Presensi: 12.06.51 WITA (Tepat Waktu)</p>
-          </div>
-
-          <div className="h-[300px] rounded-xl overflow-hidden border border-slate-200">
-            <GeofenceMap
-              config={geofenceConfig}
-              userLocation={null}
-              allStaffLocations={staffPins}
-              height="100%"
+            <ActionMenuGrid
+              onOpenMasterData={() => onTabChange('pengguna')}
+              onOpenJadwalSentra={() => onTabChange('aktivasi_absen')}
+              onOpenLaporan={() => onTabChange('laporan')}
+              onOpenInformasiUmum={() => onTabChange('pengumuman')}
+              onOpenPengaturanAbsensi={() => onTabChange('geofence')}
+              onOpenPengaturanProfile={() => setIsProfilModalOpen(true)}
             />
           </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-2">
-            <span>Radius Aman: {geofenceConfig.radiusMeters}m dari Gedung TKK</span>
-            <span>Leaflet | © OpenStreetMap</span>
+
+          {/* Tracking Location Card (5 Columns) */}
+          <div className="lg:col-span-5">
+            <TrackingLocationCard users={users} geofenceConfig={geofenceConfig} />
           </div>
         </div>
+
+        {/* Report Absensi Realtime Table */}
+        <ReportRealtimeTable
+          users={users}
+          records={records}
+          onOpenSelfieModal={(rec) => setSelectedSelfieRecord(rec)}
+        />
       </div>
     );
   };
@@ -612,6 +601,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {renderTabContent()}
+
+      {/* Modal Detail Selfie */}
+      {selectedSelfieRecord && (
+        <SelfieDetailModal
+          record={selectedSelfieRecord}
+          onClose={() => setSelectedSelfieRecord(null)}
+        />
+      )}
+
+      {/* Modal Profil Sekolah */}
+      {isProfilModalOpen && (
+        <ProfilSekolahModal onClose={() => setIsProfilModalOpen(false)} />
+      )}
     </div>
   );
 };

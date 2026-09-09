@@ -10,6 +10,7 @@ import {
   Bell,
   MapPin,
   AlertCircle,
+  CheckCircle,
   X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Circle, Marker, Popup } from 'react-leaflet';
@@ -89,6 +90,11 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   const [izinSubmitMessage, setIzinSubmitMessage] = useState('');
   const [showIzinForm, setShowIzinForm] = useState(false);
 
+  // ===== LIVE ADMIN INTEGRATION (UNLOCKS, ANNOUNCEMENTS, IZIN) =====
+  const [isUnlockedByAdmin, setIsUnlockedByAdmin] = useState(false);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [myIzinList, setMyIzinList] = useState<any[]>([]);
+
   // ===== REF KAMERA =====
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -108,6 +114,44 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   const [outDeadlineHour, outDeadlineMin] = (geofenceConfig.checkOutDeadlineTime || '15:30').split(':').map(Number);
   const outStart = outStartHour * 60 + outStartMin;
   const outDeadline = outDeadlineHour * 60 + outDeadlineMin;
+
+  // ===== FETCH DATA INTEGRASI ADMIN SECARA REAL-TIME =====
+  const fetchStaffData = async () => {
+    try {
+      // 1. Pengumuman dari Admin
+      const resAnn = await fetch('/api/announcements');
+      if (resAnn.ok) {
+        const d = await resAnn.json();
+        if (d.success && Array.isArray(d.data)) setAnnouncements(d.data);
+      }
+
+      // 2. Status Aktivasi Kunci oleh Admin
+      const resUnlock = await fetch(`/api/attendance/unlocks?date=${today}`);
+      if (resUnlock.ok) {
+        const d = await resUnlock.json();
+        if (d.success && Array.isArray(d.data)) {
+          setIsUnlockedByAdmin(d.data.includes(String(user?.id)));
+        }
+      }
+
+      // 3. Status Izin/Dispensasi Saya
+      const resIzin = await fetch('/api/izin');
+      if (resIzin.ok) {
+        const d = await resIzin.json();
+        if (d.success && Array.isArray(d.data)) {
+          setMyIzinList(d.data.filter((item: any) => String(item.user_id) === String(user?.id)));
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching staff sync data:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStaffData();
+    const interval = setInterval(fetchStaffData, 8000);
+    return () => clearInterval(interval);
+  }, [user?.id, today]);
 
   // ===== CEK REKORD HARI INI =====
   useEffect(() => {
@@ -192,18 +236,18 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     setStatusMessage({ text: '', type: '' });
 
     try {
-      if (type === 'masuk' && currentTime > inDeadline && !hasCheckedIn) {
+      if (type === 'masuk' && currentTime > inDeadline && !hasCheckedIn && !isUnlockedByAdmin) {
         setStatusMessage({
-          text: '⏰ Anda terlambat! Silakan ajukan izin.',
+          text: '⏰ Batas jam masuk telah lewat! Silakan ajukan izin keterlambatan ke Admin Utama agar tombol diaktifkan.',
           type: 'error',
         });
         setShowIzinForm(true);
         setIsLoading(false);
         return;
       }
-      if (type === 'pulang' && currentTime > outDeadline && !hasCheckedOut && hasCheckedIn) {
+      if (type === 'pulang' && currentTime > outDeadline && !hasCheckedOut && hasCheckedIn && !isUnlockedByAdmin) {
         setStatusMessage({
-          text: '⏰ Anda terlambat pulang! Silakan ajukan izin.',
+          text: '⏰ Batas jam pulang telah lewat! Silakan ajukan izin ke Admin Utama.',
           type: 'error',
         });
         setShowIzinForm(true);
@@ -640,6 +684,26 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
           </div>
         )}
 
+        {/* Banner Notifikasi Kunci Diaktifkan oleh Admin */}
+        {isUnlockedByAdmin && (
+          <div className="bg-emerald-50 border-2 border-emerald-500/60 p-4 rounded-2xl flex items-center justify-between gap-3 text-emerald-900 shadow-sm animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <CheckCircle className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <p className="font-bold text-sm">🎉 Tombol Presensi Diaktifkan oleh Admin Utama (Sr. Maria Inviolata)!</p>
+                <p className="text-xs text-emerald-700 mt-0.5">
+                  Dispensasi / izin keterlambatan Anda telah disetujui. Tombol presensi telah dibuka khusus hari ini.
+                </p>
+              </div>
+            </div>
+            <span className="bg-emerald-600 text-white text-[11px] font-extrabold uppercase px-2.5 py-1 rounded-full shrink-0">
+              KUNCI DIBUKA
+            </span>
+          </div>
+        )}
+
         {/* Tombol Kamera */}
         <div className="bg-white rounded-2xl shadow-md p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -649,20 +713,24 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
           <div className="flex gap-2">
             <button
               onClick={() => handlePresensi('masuk')}
-              disabled={isLoading || hasCheckedIn || currentTime > inDeadline}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
-                hasCheckedIn || currentTime > inDeadline
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              disabled={isLoading || hasCheckedIn || (currentTime > inDeadline && !isUnlockedByAdmin)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 ${
+                hasCheckedIn
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : currentTime > inDeadline && !isUnlockedByAdmin
+                  ? 'bg-amber-100 text-amber-700 border border-amber-300 cursor-not-allowed'
+                  : isUnlockedByAdmin
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-400 ring-offset-1'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white'
               }`}
             >
-              📸 Masuk
+              📸 Masuk {isUnlockedByAdmin ? '(Kunci Dibuka Admin)' : ''}
             </button>
             <button
               onClick={() => handlePresensi('pulang')}
-              disabled={isLoading || !hasCheckedIn || hasCheckedOut || currentTime > outDeadline}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
-                !hasCheckedIn || hasCheckedOut || currentTime > outDeadline
+              disabled={isLoading || !hasCheckedIn || hasCheckedOut || (currentTime > outDeadline && !isUnlockedByAdmin)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition ${
+                !hasCheckedIn || hasCheckedOut || (currentTime > outDeadline && !isUnlockedByAdmin)
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
@@ -766,31 +834,110 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       </form>
       <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
         <Phone className="w-5 h-5 text-green-600" />
-        <span className="text-sm">WA Admin: 0812-3888-9901 (Sr. Maria)</span>
+        <span className="text-sm">WA Admin Utama: 0812-3888-9901 (Sr. Maria Inviolata)</span>
+      </div>
+
+      {/* Riwayat Permohonan Izin / Keterlambatan Saya */}
+      <div className="pt-4 border-t border-slate-200">
+        <h4 className="font-bold text-slate-800 text-sm mb-3">📋 Status Permohonan Izin / Kunci Presensi Saya</h4>
+        {myIzinList.length === 0 ? (
+          <p className="text-xs text-slate-500 italic bg-slate-50 p-3 rounded-xl">
+            Belum ada permohonan izin yang Anda ajukan.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {myIzinList.map((item: any) => (
+              <div
+                key={item.id}
+                className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800 uppercase">
+                      {item.type === 'terlambat_masuk'
+                        ? '⏰ Izin Terlambat Masuk'
+                        : item.type === 'terlambat_pulang'
+                        ? '⏰ Izin Pulang Cepat'
+                        : '🚫 Izin Tidak Masuk'}
+                    </span>
+                    <span className="text-[10px] text-slate-500">{item.date}</span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-0.5">{item.reason}</p>
+                  {item.admin_notes && (
+                    <p className="text-[11px] text-emerald-700 mt-1 font-medium bg-emerald-50 px-2 py-0.5 rounded">
+                      💬 Balasan Admin: {item.admin_notes}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <span
+                    className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full ${
+                      item.status === 'disetujui' || item.status === 'APPROVED'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : item.status === 'ditolak' || item.status === 'REJECTED'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {item.status === 'disetujui' || item.status === 'APPROVED'
+                      ? '✅ DISETUJUI'
+                      : item.status === 'ditolak' || item.status === 'REJECTED'
+                      ? '❌ DITOLAK'
+                      : '⏳ MENUNGGU PERSETUJUAN'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 
-  // ===== PENGUMUMAN =====
+  // ===== PENGUMUMAN DARI ADMIN =====
   const renderPengumuman = () => (
     <div className="bg-white rounded-2xl shadow-md p-6 space-y-4">
-      <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-        <Bell className="w-5 h-5 text-emerald-600" />
-        Pengumuman Sekolah
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <Bell className="w-5 h-5 text-emerald-600" />
+          Pengumuman Sekolah (Resmi)
+        </h3>
+        <span className="text-xs font-medium text-slate-500">
+          Dari: Admin Utama TKK Inviolata Ruteng
+        </span>
+      </div>
+
       <div className="space-y-3">
-        <div className="border-l-4 border-emerald-500 pl-4 py-2">
-          <p className="font-semibold text-gray-800">📢 Libur Nasional</p>
-          <p className="text-xs text-gray-500">Tanggal 17 Agustus 2026 – Upacara Kemerdekaan</p>
-        </div>
-        <div className="border-l-4 border-blue-500 pl-4 py-2">
-          <p className="font-semibold text-gray-800">📢 Rapat Guru</p>
-          <p className="text-xs text-gray-500">Jumat, 11 September 2026 pukul 13:00 WITA</p>
-        </div>
-        <div className="border-l-4 border-yellow-500 pl-4 py-2">
-          <p className="font-semibold text-gray-800">📢 Pendaftaran Siswa Baru</p>
-          <p className="text-xs text-gray-500">Dibuka 1 Oktober – 30 November 2026</p>
-        </div>
+        {announcements && announcements.length > 0 ? (
+          announcements.map((ann: any) => (
+            <div
+              key={ann.id}
+              className={`p-4 rounded-xl border-l-4 shadow-2xs ${
+                ann.category === 'URGENT'
+                  ? 'border-red-500 bg-red-50/50'
+                  : ann.category === 'ACADEMIC'
+                  ? 'border-purple-500 bg-purple-50/50'
+                  : 'border-[#0088cc] bg-blue-50/40'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-white shadow-2xs text-slate-700">
+                  {ann.category || 'INFO'}
+                </span>
+                <span className="text-[11px] text-slate-500 font-mono">{ann.date}</span>
+              </div>
+              <h4 className="font-bold text-slate-900 text-sm mt-1.5">{ann.title}</h4>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">{ann.content}</p>
+              <div className="mt-2 text-[10px] text-slate-500 font-medium">
+                Diterbitkan oleh: <span className="font-bold text-slate-700">{ann.author || 'Sr. Maria (Admin Utama)'}</span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-6 text-slate-500 text-xs">
+            Belum ada pengumuman terbaru dari pihak sekolah.
+          </div>
+        )}
       </div>
     </div>
   );

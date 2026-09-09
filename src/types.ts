@@ -102,12 +102,14 @@ export interface AttendanceUnlockRequest {
   userName: string;
   userRole: string;
   userPosition?: string;
-  type: 'MASUK' | 'PULANG' | 'IZIN_SAKIT' | 'IZIN_KEPERLUAN' | 'CUTI' | string;
+  type?: 'MASUK' | 'PULANG' | 'IZIN_SAKIT' | 'IZIN_KEPERLUAN' | 'CUTI' | string;
+  attendanceType?: 'MASUK' | 'PULANG' | string;
   requestTime?: string;
   currentTime?: string;
   reason: string;
-  status: 'MENUNGGU' | 'DISETUJUI' | 'DITOLAK' | string;
+  status: 'MENUNGGU' | 'DISETUJUI' | 'DITOLAK' | 'PENDING' | 'APPROVED' | 'REJECTED' | string;
   adminNotes?: string;
+  respondedAt?: string;
   createdAt?: string;
   startDate?: string;
   endDate?: string;

@@ -5,7 +5,8 @@ import { StaffDashboard } from './components/StaffDashboard';
 import { MainLayout } from './components/MainLayout';
 import { MobileAbsenKuHome } from './components/absenku/MobileAbsenKuHome';
 import { MobileStaffDashboard } from './components/absenku/MobileStaffDashboard';
-import { User, AttendanceRecord, GeofenceConfig } from './types';
+import { MobileAppMockup } from './components/absenku/MobileAppMockup';
+import { User, AttendanceRecord, GeofenceConfig, AttendanceUnlockRequest } from './types';
 
 const DUMMY_USERS: User[] = [
   {
@@ -59,6 +60,26 @@ function App() {
   const [geofenceConfig, setGeofenceConfig] = useState<GeofenceConfig>(DEFAULT_GEOFENCE);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Dual Showcase State (Laptop di Belakang + HP di Depan seperti di gambar)
+  const [viewMode, setViewMode] = useState<'showcase' | 'desktop' | 'mobile'>('showcase');
+  const [showPhoneMockup, setShowPhoneMockup] = useState(true);
+
+  // Unlock / Dispensasi Requests State
+  const [unlockRequests, setUnlockRequests] = useState<AttendanceUnlockRequest[]>([
+    {
+      id: 'req-init-1',
+      userId: '2',
+      userName: 'Ibu Yuliana',
+      userRole: 'GURU',
+      requestTime: '07:22 WITA',
+      attendanceType: 'MASUK',
+      reason: 'Kendaraan motor mogok dalam perjalanan ke sekolah',
+      status: 'APPROVED',
+      adminNotes: 'Dispensasi disetujui oleh Sr. Maria. Silakan presensi.',
+      respondedAt: '07:25 WITA',
+    },
+  ]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 768px)');
@@ -130,6 +151,29 @@ function App() {
           const userRole = foundUser?.role || item.user_role || 'STAFF';
           const avatar = foundUser?.avatarUrl || `https://ui-avatars.com/api/?name=${userName}&background=gray&color=fff&size=40`;
 
+          const checkInTimeStr = item.check_in_time
+            ? new Date(item.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            : undefined;
+
+          let checkInStatus: 'TEPAT_WAKTU' | 'TERLAMBAT' | 'TERLAMBAT_DIIZINKAN' = 'TEPAT_WAKTU';
+          if (item.status === 'terlambat' || item.status === 'TERLAMBAT') {
+            checkInStatus = 'TERLAMBAT';
+          } else if (
+            item.status === 'AKTIF_TERLAMBAT' ||
+            item.notes?.toLowerCase().includes('dispensasi') ||
+            item.notes?.toLowerCase().includes('diaktifkan')
+          ) {
+            checkInStatus = 'TERLAMBAT_DIIZINKAN';
+          } else if (item.check_in_time) {
+            const d = new Date(item.check_in_time);
+            const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            const [h, m] = timeStr.split(':').map(Number);
+            const [dh, dm] = (geofenceConfig?.checkInDeadlineTime || '07:15').split(':').map(Number);
+            if (h * 60 + m > dh * 60 + dm) {
+              checkInStatus = 'TERLAMBAT';
+            }
+          }
+
           return {
             id: item.id.toString(),
             userId: item.user_id.toString(),
@@ -137,13 +181,13 @@ function App() {
             userRole: userRole,
             nip: userNip,
             date: item.attendance_date.split('T')[0],
-            checkInTime: new Date(item.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            checkInTime: checkInTimeStr,
             checkInLocation: {
               latitude: item.check_in_lat || 0,
               longitude: item.check_in_lng || 0,
               distanceMeters: 0,
             },
-            checkInStatus: 'TEPAT_WAKTU',
+            checkInStatus: checkInStatus,
             checkInPhoto: avatar,
             status: item.status || 'hadir',
             notes: item.notes || '',
@@ -170,6 +214,52 @@ function App() {
 
   const handleRefresh = async () => {
     await fetchUsers();
+    await fetchRecords();
+  };
+
+  const handleQuickSwitchUser = (newUser: User) => {
+    setUser(newUser);
+    localStorage.setItem('user', JSON.stringify(newUser));
+  };
+
+  const handleRequestUnlock = async (userId: string, reason: string, type: 'MASUK' | 'PULANG') => {
+    const reqUser = users.find((u) => String(u.id) === String(userId)) || user;
+    const newReq: AttendanceUnlockRequest = {
+      id: `req-${Date.now()}`,
+      userId: userId,
+      userName: reqUser?.name || 'Staf',
+      userRole: reqUser?.role || 'GURU',
+      requestTime: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WITA',
+      attendanceType: type,
+      reason: reason,
+      status: 'PENDING',
+    };
+    setUnlockRequests((prev) => [newReq, ...prev]);
+
+    try {
+      await fetch('/api/izin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          user_name: reqUser?.name || 'Staf',
+          user_nip: reqUser?.nip || '1988000000000',
+          type: type === 'MASUK' ? 'terlambat_masuk' : 'terlambat_pulang',
+          reason: reason,
+          date: new Date().toISOString().split('T')[0],
+        }),
+      });
+      await fetchRecords();
+    } catch (err) {
+      console.warn('Izin request sync fallback:', err);
+    }
+  };
+
+  const handleRecordAttendanceFromMobile = async (newRec: AttendanceRecord) => {
+    setRecords((prev) => [
+      newRec,
+      ...prev.filter((r) => !(r.userId === newRec.userId && r.date === newRec.date)),
+    ]);
     await fetchRecords();
   };
 
@@ -294,34 +384,53 @@ function App() {
     user.role === 'Administrator' ||
     user.role === 'Administrator Utama';
 
-  if (isMobile) {
+  const isForceMobile = viewMode === 'mobile' || isMobile;
+
+  // Render Mobile Mockup element for Showcase (Gambar HP di depan seperti di gambar referensi)
+  const mobileMockupElement = (
+    <MobileAppMockup
+      users={users.length > 0 ? users : DUMMY_USERS}
+      currentUser={user}
+      geofenceConfig={geofenceConfig}
+      onRecordAttendance={handleRecordAttendanceFromMobile}
+      unlockRequests={unlockRequests}
+      onRequestUnlock={handleRequestUnlock}
+      onClose={() => setShowPhoneMockup(false)}
+    />
+  );
+
+  if (isForceMobile) {
     if (isAdmin) {
       return (
-        <MobileAbsenKuHome
-          user={user}
-          onLogout={handleLogout}
-          onNavigate={setAdminTab}
-          users={users}
-          records={records}
-          geofenceConfig={geofenceConfig}
-          onSaveGeofenceConfig={handleSaveGeofence}
-          onAddUser={handleAddUser}
-          onUpdateUser={handleUpdateUser}
-          onDeleteUser={handleDeleteUser}
-          onImportUsers={handleImportUsers}
-          adminTab={adminTab}
-          setAdminTab={setAdminTab}
-        />
+        <div className="relative min-h-screen bg-slate-900">
+          <MobileAbsenKuHome
+            user={user}
+            onLogout={handleLogout}
+            onNavigate={setAdminTab}
+            users={users}
+            records={records}
+            geofenceConfig={geofenceConfig}
+            onSaveGeofenceConfig={handleSaveGeofence}
+            onAddUser={handleAddUser}
+            onUpdateUser={handleUpdateUser}
+            onDeleteUser={handleDeleteUser}
+            onImportUsers={handleImportUsers}
+            adminTab={adminTab}
+            setAdminTab={setAdminTab}
+          />
+        </div>
       );
     } else {
       return (
-        <MobileStaffDashboard
-          user={user}
-          records={records}
-          onRefresh={handleRefresh}
-          onLogout={handleLogout}
-          geofenceConfig={geofenceConfig}
-        />
+        <div className="relative min-h-screen bg-slate-900">
+          <MobileStaffDashboard
+            user={user}
+            records={records}
+            onRefresh={handleRefresh}
+            onLogout={handleLogout}
+            geofenceConfig={geofenceConfig}
+          />
+        </div>
       );
     }
   }
@@ -333,6 +442,13 @@ function App() {
         onLogout={handleLogout}
         activeTab={adminTab}
         onTabChange={setAdminTab}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        allUsers={users.length > 0 ? users : DUMMY_USERS}
+        onQuickSwitchUser={handleQuickSwitchUser}
+        mobileMockupElement={mobileMockupElement}
+        showPhoneMockup={showPhoneMockup}
+        onTogglePhoneMockup={() => setShowPhoneMockup(!showPhoneMockup)}
       >
         <AdminDashboard
           users={users}
@@ -352,13 +468,93 @@ function App() {
   }
 
   return (
-    <StaffDashboard
-      user={user}
-      records={records}
-      onRefresh={handleRefresh}
-      onLogout={handleLogout}
-      geofenceConfig={geofenceConfig}
-    />
+    <div className="relative min-h-screen bg-slate-100 flex flex-col">
+      {/* Top Bar Guru & Pegawai dengan View Switcher & Akun Tester */}
+      <div className="bg-[#0088cc] text-white px-4 py-2.5 flex items-center justify-between text-xs shadow-md border-b border-[#0077b5] shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="font-extrabold tracking-wider uppercase">PORTAL GURU & PEGAWAI</span>
+          <span className="bg-emerald-400 text-slate-900 text-[10px] font-bold px-1.5 py-0.5 rounded">
+            TKK INVIOLATA RUTENG
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center bg-[#0072aa] p-0.5 rounded-lg border border-white/20 text-xs">
+            <button
+              onClick={() => setViewMode('showcase')}
+              className={`px-3 py-1 rounded-md font-bold transition ${
+                viewMode === 'showcase' ? 'bg-white text-[#0088cc] shadow-xs' : 'text-white/80 hover:text-white'
+              }`}
+            >
+              Showcase (Laptop + HP)
+            </button>
+            <button
+              onClick={() => setViewMode('desktop')}
+              className={`px-3 py-1 rounded-md font-bold transition ${
+                viewMode === 'desktop' ? 'bg-white text-[#0088cc] shadow-xs' : 'text-white/80 hover:text-white'
+              }`}
+            >
+              Laptop Saja
+            </button>
+            <button
+              onClick={() => setViewMode('mobile')}
+              className={`px-3 py-1 rounded-md font-bold transition ${
+                viewMode === 'mobile' ? 'bg-white text-[#0088cc] shadow-xs' : 'text-white/80 hover:text-white'
+              }`}
+            >
+              HP Saja
+            </button>
+          </div>
+          {users.length > 0 && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-[#0072aa] px-2 py-1 rounded-lg border border-white/20">
+              <span className="text-[10px] text-white/80 font-semibold">Simulasi Akun:</span>
+              <select
+                value={user.id}
+                onChange={(e) => {
+                  const f = users.find((u) => String(u.id) === e.target.value);
+                  if (f) handleQuickSwitchUser(f);
+                }}
+                className="bg-white text-slate-800 text-[11px] font-bold rounded px-1.5 py-0.5 border-none outline-none cursor-pointer"
+              >
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1">
+        <StaffDashboard
+          user={user}
+          records={records}
+          onRefresh={handleRefresh}
+          onLogout={handleLogout}
+          geofenceConfig={geofenceConfig}
+        />
+      </div>
+
+      {/* Floating Interactive Phone Mockup for Staff in Showcase Mode */}
+      {viewMode === 'showcase' && showPhoneMockup && (
+        <aside className="fixed right-6 bottom-4 z-40">
+          <div className="bg-slate-900 text-white px-3 py-1.5 rounded-t-xl text-[11px] font-bold flex items-center justify-between border-t border-x border-slate-700 shadow-lg">
+            <span>📱 Simulasi HP Guru/Pegawai</span>
+            <button
+              onClick={() => setShowPhoneMockup(false)}
+              className="hover:text-red-400 p-0.5"
+              title="Tutup HP"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="bg-slate-950 p-2 rounded-b-[40px] shadow-2xl border-b border-x border-slate-700 max-h-[85vh] overflow-y-auto">
+            {mobileMockupElement}
+          </div>
+        </aside>
+      )}
+    </div>
   );
 }
 

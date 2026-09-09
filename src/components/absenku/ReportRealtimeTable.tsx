@@ -40,7 +40,7 @@ export const ReportRealtimeTable: React.FC<ReportRealtimeTableProps> = ({
   const tableData = users
     .filter((u) => u.role !== 'ADMIN')
     .map((user, idx) => {
-      const rec = todayRecords.find((r) => r.userId === user.id);
+      const rec = todayRecords.find((r) => String(r.userId) === String(user.id));
       return {
         no: idx + 1,
         user,
@@ -49,8 +49,8 @@ export const ReportRealtimeTable: React.FC<ReportRealtimeTableProps> = ({
     })
     .filter(
       (item) =>
-        item.user.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
-        item.user.position.toLowerCase().includes(searchFilter.toLowerCase())
+        (item.user.name || '').toLowerCase().includes(searchFilter.toLowerCase()) ||
+        (item.user.position || '').toLowerCase().includes(searchFilter.toLowerCase())
     );
 
   const handleExportExcel = () => {

@@ -760,6 +760,8 @@ app.post('/api/attendance', async (req, res) => {
   }
 });
 
+const inMemoryActiveUnlocks = new Map<string, boolean>();
+
 // Re-activate attendance button endpoint
 app.post('/api/attendance/activate', async (req, res) => {
   try {
@@ -769,6 +771,8 @@ app.post('/api/attendance/activate', async (req, res) => {
     }
 
     const formattedDate = date.includes('T') ? date.split('T')[0] : date;
+    inMemoryActiveUnlocks.set(`${user_id}_${formattedDate}`, true);
+
     const existingIndex = inMemoryAttendance.findIndex(
       (a) => String(a.user_id) === String(user_id) && a.attendance_date === formattedDate
     );
@@ -829,6 +833,25 @@ app.post('/api/attendance/activate', async (req, res) => {
     }
 
     return res.status(200).json({ success: true, message: 'Tombol absen diaktifkan kembali' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Check which users have been unlocked by admin for a given date
+app.get('/api/attendance/unlocks', (req, res) => {
+  try {
+    const queryDate = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const formattedDate = queryDate.includes('T') ? queryDate.split('T')[0] : queryDate;
+    const unlockedUserIds: string[] = [];
+
+    for (const [key, val] of inMemoryActiveUnlocks.entries()) {
+      if (val && key.endsWith(`_${formattedDate}`)) {
+        unlockedUserIds.push(key.split('_')[0]);
+      }
+    }
+
+    return res.status(200).json({ success: true, data: unlockedUserIds });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -970,6 +993,11 @@ app.put('/api/izin', async (req, res) => {
     if (admin_notes !== undefined) item.admin_notes = admin_notes;
     item.updated_at = new Date().toISOString();
 
+    if (status === 'approved') {
+      const formattedDate = item.date?.includes('T') ? item.date.split('T')[0] : item.date;
+      inMemoryActiveUnlocks.set(`${item.user_id}_${formattedDate}`, true);
+    }
+
     const sql = getDb();
     if (sql) {
       try {
@@ -984,6 +1012,118 @@ app.put('/api/izin', async (req, res) => {
     }
 
     return res.status(200).json({ success: true, data: item });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 6. ANNOUNCEMENT API (PENGUMUMAN SEKOLAH)
+let inMemoryAnnouncements = [
+  {
+    id: '1',
+    title: 'Doa Pagi Bersama & Ibadah Sentra Rohani',
+    content: 'Seluruh Pendidik & Tenaga Kependidikan TKK Inviolata Ruteng diharapkan hadir di Aula pukul 07.00 WITA untuk mendampingi anak-anak Kelompok A & B.',
+    date: new Date().toISOString().split('T')[0],
+    isPinned: true,
+    author: 'Sr. Maria Inviolata, S.Pd. (Kepala TKK)',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    title: 'Evaluasi Pembelajaran Sentra & Kurikulum Merdeka',
+    content: 'Rapat koordinasi mingguan guru kelas akan diadakan hari Jumat pukul 12.30 WITA setelah jam kepulangan siswa.',
+    date: new Date().toISOString().split('T')[0],
+    isPinned: false,
+    author: 'Sr. Maria Inviolata, S.Pd. (Kepala TKK)',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    title: 'Pemberitahuan Toleransi Jam Presensi Sekolah',
+    content: 'Batas toleransi presensi pagi adalah pukul 07.15 WITA. Bagi yang berhalangan atau terlambat, silakan ajukan izin atau permohonan buka kunci via aplikasi.',
+    date: new Date().toISOString().split('T')[0],
+    isPinned: true,
+    author: 'Tata Usaha TKK Inviolata',
+    created_at: new Date().toISOString(),
+  },
+];
+
+app.get('/api/announcements', async (req, res) => {
+  try {
+    const sql = getDb();
+    if (sql) {
+      try {
+        const result = await sql`
+          SELECT * FROM announcements
+          ORDER BY is_pinned DESC, created_at DESC
+        `;
+        if (result && result.length > 0) {
+          return res.status(200).json({ success: true, data: result });
+        }
+      } catch (dbErr) {
+        // Fallback to in-memory
+      }
+    }
+    return res.status(200).json({ success: true, data: inMemoryAnnouncements });
+  } catch (error: any) {
+    return res.status(200).json({ success: true, data: inMemoryAnnouncements });
+  }
+});
+
+app.post('/api/announcements', async (req, res) => {
+  try {
+    const { title, content, date, isPinned, author } = req.body;
+    if (!title || !content) {
+      return res.status(400).json({ success: false, error: 'Judul dan isi pengumuman wajib diisi.' });
+    }
+
+    const newAnnouncement = {
+      id: Date.now().toString(),
+      title,
+      content,
+      date: date || new Date().toISOString().split('T')[0],
+      isPinned: !!isPinned,
+      author: author || 'Admin Utama TKK Inviolata',
+      created_at: new Date().toISOString(),
+    };
+
+    inMemoryAnnouncements.unshift(newAnnouncement);
+
+    const sql = getDb();
+    if (sql) {
+      try {
+        await sql`
+          INSERT INTO announcements (title, content, date, is_pinned, author, created_at)
+          VALUES (${title}, ${content}, ${newAnnouncement.date}, ${newAnnouncement.isPinned}, ${newAnnouncement.author}, NOW())
+        `;
+      } catch (dbErr) {
+        console.warn('[API] Insert announcement DB fallback:', (dbErr as Error).message);
+      }
+    }
+
+    return res.status(201).json({ success: true, data: newAnnouncement });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/announcements/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    inMemoryAnnouncements = inMemoryAnnouncements.filter((a) => a.id !== id);
+
+    const sql = getDb();
+    if (sql) {
+      try {
+        await sql`
+          DELETE FROM announcements WHERE id = ${id}
+        `;
+      } catch (dbErr) {
+        // Fallback
+      }
+    }
+
+    return res.status(200).json({ success: true, message: 'Pengumuman berhasil dihapus.' });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error.message });
   }

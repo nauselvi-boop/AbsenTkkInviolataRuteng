@@ -100,6 +100,33 @@ export const MobileAppMockup: React.FC<MobileAppMockupProps> = ({
   ]);
   const [inputMessage, setInputMessage] = useState('');
 
+  // Backend Integration State (Announcements & Unlocks)
+  const [backendUnlocks, setBackendUnlocks] = useState<string[]>([]);
+  const [liveAnnouncements, setLiveAnnouncements] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchMobileSync = async () => {
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const resUnlock = await fetch(`/api/attendance/unlocks?date=${todayStr}`);
+        if (resUnlock.ok) {
+          const d = await resUnlock.json();
+          if (d.success && Array.isArray(d.data)) setBackendUnlocks(d.data);
+        }
+        const resAnn = await fetch('/api/announcements');
+        if (resAnn.ok) {
+          const d = await resAnn.json();
+          if (d.success && Array.isArray(d.data)) setLiveAnnouncements(d.data);
+        }
+      } catch (err) {
+        console.warn('Sync mobile data warning:', err);
+      }
+    };
+    fetchMobileSync();
+    const timer = setInterval(fetchMobileSync, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Evaluate time window
   const timeEval = evaluateAttendanceTime(
     simulatedTime,
@@ -108,11 +135,15 @@ export const MobileAppMockup: React.FC<MobileAppMockupProps> = ({
   );
 
   // Check if this user has an approved or pending unlock request
+  const isBackendUnlocked = backendUnlocks.includes(String(selectedUser.id));
   const userUnlock = unlockRequests.find(
-    (r) => r.userId === selectedUser.id && r.type === attendanceType
+    (r) => String(r.userId) === String(selectedUser.id) && (r.type === attendanceType || r.attendanceType === attendanceType)
   );
-  const isUnlockApproved = userUnlock?.status === 'DISETUJUI';
-  const isUnlockPending = userUnlock?.status === 'MENUNGGU';
+  const isUnlockApproved =
+    userUnlock?.status === 'DISETUJUI' ||
+    userUnlock?.status === 'APPROVED' ||
+    isBackendUnlocked;
+  const isUnlockPending = userUnlock?.status === 'MENUNGGU' || userUnlock?.status === 'PENDING';
 
   // Can the user clock in right now?
   const canSubmitAttendance =
@@ -176,15 +207,55 @@ export const MobileAppMockup: React.FC<MobileAppMockupProps> = ({
       };
 
       onRecordAttendance(newRec);
+
+      // Sinkronisasi instan ke server endpoint /api/attendance
+      try {
+        fetch('/api/attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: selectedUser.id,
+            date: dateStr,
+            status: checkInStatus === 'TERLAMBAT' ? 'terlambat' : 'hadir',
+            location: 'TKK Inviolata Ruteng (Area Sekolah)',
+            notes: notes,
+            lat: geofenceConfig.latitude + 0.00008,
+            lng: geofenceConfig.longitude + 0.00008,
+            photo: selectedUser.avatarUrl || null,
+          }),
+        }).catch(() => {});
+      } catch (e) {
+        // silent fallback
+      }
+
       setIsSubmitting(false);
       setAbsenSuccess(true);
     }, 1000);
   };
 
-  const handleSubmitExcuse = (e: React.FormEvent) => {
+  const handleSubmitExcuse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!excuseReason.trim()) return;
     onRequestUnlock(selectedUser.id, excuseReason.trim(), attendanceType);
+
+    // Kirim langsung ke /api/izin agar tersinkron ke Admin Utama secara instan
+    try {
+      await fetch('/api/izin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: selectedUser.id,
+          user_name: selectedUser.name,
+          user_nip: selectedUser.nip,
+          type: attendanceType === 'MASUK' ? 'terlambat_masuk' : 'terlambat_pulang',
+          reason: excuseReason.trim(),
+          date: new Date().toISOString().split('T')[0],
+        }),
+      });
+    } catch (err) {
+      console.warn('Sync izin fallback:', err);
+    }
+
     setExcuseReason('');
     setShowExcuseForm(false);
   };
@@ -734,29 +805,56 @@ export const MobileAppMockup: React.FC<MobileAppMockupProps> = ({
             </div>
 
             <div className="space-y-3 flex-1 overflow-y-auto text-xs">
-              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                  Aturan Kehadiran
-                </span>
-                <h5 className="font-bold text-slate-900 mt-1">
-                  Ketentuan Batas Waktu Presensi
-                </h5>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  Presensi masuk dibuka pukul {geofenceConfig.checkInStartTime} - {geofenceConfig.checkInDeadlineTime} WITA. Guru & pegawai yang hadir melewati jam tersebut wajib menghubungi Admin Utama ({geofenceConfig.adminContactName}).
-                </p>
-              </div>
+              {liveAnnouncements && liveAnnouncements.length > 0 ? (
+                liveAnnouncements.map((ann) => (
+                  <div
+                    key={ann.id}
+                    className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-[#0088cc] bg-blue-50 px-2 py-0.5 rounded uppercase">
+                        {ann.category || 'PENGUMUMAN'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">{ann.date}</span>
+                    </div>
+                    <h5 className="font-bold text-slate-900 mt-1">
+                      {ann.title}
+                    </h5>
+                    <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                      {ann.content}
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-1">
+                      Oleh: {ann.author || 'Sr. Maria (Admin Utama)'}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                      Aturan Kehadiran
+                    </span>
+                    <h5 className="font-bold text-slate-900 mt-1">
+                      Ketentuan Batas Waktu Presensi
+                    </h5>
+                    <p className="text-[11px] text-slate-600 mt-1">
+                      Presensi masuk dibuka pukul {geofenceConfig.checkInStartTime} - {geofenceConfig.checkInDeadlineTime} WITA. Guru & pegawai yang hadir melewati jam tersebut wajib menghubungi Admin Utama ({geofenceConfig.adminContactName}).
+                    </p>
+                  </div>
 
-              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-                <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
-                  Agenda Sekolah
-                </span>
-                <h5 className="font-bold text-slate-900 mt-1">
-                  Pembagian Sentra Bermain Anak
-                </h5>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  Kegiatan sentra dimulai pukul 07:30 WITA setelah doa pagi. Mohon guru kelas menyiapkan sarana sentra masing-masing.
-                </p>
-              </div>
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                      Agenda Sekolah
+                    </span>
+                    <h5 className="font-bold text-slate-900 mt-1">
+                      Pembagian Sentra Bermain Anak
+                    </h5>
+                    <p className="text-[11px] text-slate-600 mt-1">
+                      Kegiatan sentra dimulai pukul 07:30 WITA setelah doa pagi. Mohon guru kelas menyiapkan sarana sentra masing-masing.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
