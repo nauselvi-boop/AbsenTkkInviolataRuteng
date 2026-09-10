@@ -9,6 +9,7 @@ import { TrackingLocationCard } from './absenku/TrackingLocationCard';
 import { ReportRealtimeTable } from './absenku/ReportRealtimeTable';
 import { AbsenKuLogo } from './absenku/AbsenKuLogo';
 import { SelfieDetailModal, ProfilSekolahModal } from './absenku/AbsenKuModals';
+import { AdminProfileEditor } from './absenku/AdminProfileEditor';
 import {
   Activity,
   Users,
@@ -63,6 +64,7 @@ interface Announcement {
 }
 
 interface AdminDashboardProps {
+  currentUser?: User;
   users: User[];
   records: AttendanceRecord[];
   geofenceConfig: GeofenceConfig;
@@ -77,6 +79,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  currentUser,
   users,
   records,
   geofenceConfig,
@@ -404,15 +407,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         return renderPengumuman();
       case 'profile':
         return (
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-xl font-bold text-slate-800 mb-4">Profil Admin Utama</h3>
-            <div className="space-y-2 text-sm text-slate-700">
-              <p><strong>Nama Lengkap:</strong> {users.find((u) => u.role === 'ADMIN')?.name || 'Sr. Maria Inviolata, S.Pd.'}</p>
-              <p><strong>Jabatan:</strong> Kepala Sekolah / Admin Utama TKK Inviolata Ruteng</p>
-              <p><strong>Email:</strong> {users.find((u) => u.role === 'ADMIN')?.email || 'admin@tkkinviolata.sch.id'}</p>
-              <p><strong>NIP:</strong> {users.find((u) => u.role === 'ADMIN')?.nip || '197508152002122001'}</p>
-            </div>
-          </div>
+          <AdminProfileEditor
+            currentUser={currentUser}
+            users={users}
+            onUpdateUser={onUpdateUser}
+          />
         );
       default:
         return <div>Halaman tidak ditemukan.</div>;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Camera,
   Clock,
@@ -22,8 +22,12 @@ import {
   Check,
   AlertTriangle,
   Upload,
+  History,
+  Calendar,
+  Smartphone,
+  Laptop,
 } from 'lucide-react';
-import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { AttendanceCameraModal } from './absenku/AttendanceCameraModal';
@@ -36,7 +40,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-type MenuPage = 'dashboard' | 'dispensasi' | 'pengumuman' | 'profil' | 'keluar';
+type MenuPage = 'dashboard' | 'riwayat' | 'dispensasi' | 'pengumuman' | 'profil' | 'keluar';
 
 interface StaffDashboardProps {
   user: any;
@@ -56,11 +60,16 @@ interface StaffDashboardProps {
 }
 
 // Map center controller helper
-function ChangeMapView({ coords }: { coords: [number, number] }) {
+function ChangeMapView({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(coords, map.getZoom());
-  }, [coords, map]);
+    if (map) {
+      const center = map.getCenter();
+      if (Math.abs(center.lat - lat) > 0.0001 || Math.abs(center.lng - lng) > 0.0001) {
+        map.setView([lat, lng], map.getZoom());
+      }
+    }
+  }, [lat, lng]);
   return null;
 }
 
@@ -80,17 +89,37 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     checkOutDeadlineTime: '15:30',
   },
 }) => {
+  const today = new Date().toISOString().split('T')[0];
+
+  // ===== RECORD HARI INI SECARA MURNI (Mencegah loop re-render) =====
+  const todayRecord = useMemo(() => {
+    return (
+      records.find(
+        (r) => String(r.userId) === String(user?.id) && r.date === today
+      ) || null
+    );
+  }, [records, user?.id, today]);
+
+  const hasCheckedIn = Boolean(todayRecord?.checkInTime);
+  const hasCheckedOut = Boolean(todayRecord?.checkOutTime);
+
   // ===== STATE UTAMA =====
   const [selectedType, setSelectedType] = useState<'masuk' | 'pulang'>('masuk');
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [previewPhotoModal, setPreviewPhotoModal] = useState<string | null>(null);
-  const [todayRecord, setTodayRecord] = useState<any>(null);
-  const [hasCheckedIn, setHasCheckedIn] = useState(false);
-  const [hasCheckedOut, setHasCheckedOut] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({
     text: '',
     type: '',
   });
+
+  // Sinkronkan toggle masuk/pulang saat status absen berubah (hanya bergantung pada boolean)
+  useEffect(() => {
+    if (hasCheckedIn && !hasCheckedOut) {
+      setSelectedType('pulang');
+    } else if (!hasCheckedIn) {
+      setSelectedType('masuk');
+    }
+  }, [hasCheckedIn, hasCheckedOut]);
 
   // Navigation & Modals
   const [currentPage, setCurrentPage] = useState<MenuPage>('dashboard');
@@ -103,6 +132,9 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   // GPS State
   const schoolLat = geofenceConfig.latitude || -8.61631;
   const schoolLng = geofenceConfig.longitude || 120.463403;
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
+  const [gpsNote, setGpsNote] = useState<string | null>(null);
+
   const [userLocation, setUserLocation] = useState<{
     lat: number;
     lng: number;
@@ -137,7 +169,6 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   const [myIzinList, setMyIzinList] = useState<any[]>([]);
 
   // Waktu
-  const today = new Date().toISOString().split('T')[0];
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -173,52 +204,91 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   };
 
   // ===== REFRESH GPS LOKASI (HANDLES LAPTOP & HP) =====
-  const refreshGPS = () => {
+  const refreshGPS = (forceRealGps: boolean = false) => {
     setUserLocation((prev) => ({ ...prev, isRefreshing: true }));
+    setGpsNote(null);
+
+    // Jika mode simulasi aktif dan tidak dipaksa real GPS
+    if (isSimulationMode && !forceRealGps) {
+      setUserLocation({
+        lat: schoolLat,
+        lng: schoolLng,
+        distance: 0,
+        accuracy: 3,
+        isRefreshing: false,
+        isVerified: true,
+      });
+      return;
+    }
 
     if (!navigator.geolocation) {
-      setTimeout(() => {
-        setUserLocation({
-          lat: schoolLat,
-          lng: schoolLng,
-          distance: 0,
-          accuracy: 3,
-          isRefreshing: false,
-          isVerified: true,
-        });
-      }, 500);
+      setGpsNote('Perangkat/browser tidak mendukung geolokasi GPS.');
+      setUserLocation({
+        lat: schoolLat,
+        lng: schoolLng,
+        distance: 0,
+        accuracy: 3,
+        isRefreshing: false,
+        isVerified: true,
+      });
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
-        const dist = calculateDistance(latitude, longitude, schoolLat, schoolLng);
-        // Bila berada di sekitar sekolah atau pengujian di iframe/laptop
-        const isNear = dist <= (geofenceConfig.radiusMeters || 50) + 100;
+        const dist = Math.round(calculateDistance(latitude, longitude, schoolLat, schoolLng));
+        const radius = geofenceConfig.radiusMeters || 50;
+        const isWithin = dist <= radius;
+
         setUserLocation({
-          lat: isNear ? latitude : schoolLat,
-          lng: isNear ? longitude : schoolLng,
-          distance: isNear ? Math.round(dist) : 0,
-          accuracy: Math.round(accuracy) || 3,
+          lat: latitude,
+          lng: longitude,
+          distance: dist,
+          accuracy: Math.round(accuracy) || 5,
           isRefreshing: false,
-          isVerified: true,
+          isVerified: isWithin,
         });
       },
       (err) => {
-        console.warn('GPS location fallback to school coordinates:', err.message);
-        // Fallback otomatis ke koordinat sekolah sehingga tidak pernah muncul error blocking
+        console.warn('GPS location fetch issue:', err.message);
+        setGpsNote(`Sinyal GPS perangkat belum terbaca (${err.message}). Menggunakan titik sekolah.`);
         setUserLocation({
           lat: schoolLat,
           lng: schoolLng,
           distance: 0,
-          accuracy: 3,
+          accuracy: 5,
           isRefreshing: false,
           isVerified: true,
         });
       },
-      { enableHighAccuracy: false, timeout: 6000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
     );
+  };
+
+  const toggleSimulationMode = () => {
+    if (!isSimulationMode) {
+      setIsSimulationMode(true);
+      setUserLocation({
+        lat: schoolLat,
+        lng: schoolLng,
+        distance: 0,
+        accuracy: 3,
+        isRefreshing: false,
+        isVerified: true,
+      });
+      setStatusMessage({
+        text: '📍 Mode Simulasi Titik Sekolah AKTIF. Anda kini berada di titik sekolah (0 meter).',
+        type: 'success',
+      });
+    } else {
+      setIsSimulationMode(false);
+      refreshGPS(true);
+      setStatusMessage({
+        text: '🌐 Mode Simulasi Dimatikan. Membaca koordinat GPS fisik perangkat...',
+        type: 'success',
+      });
+    }
   };
 
   useEffect(() => {
@@ -263,28 +333,6 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     return () => clearInterval(interval);
   }, [user?.id, today]);
 
-  // ===== CEK REKORD HARI INI =====
-  useEffect(() => {
-    const found = records.find(
-      (r) => r.userId === user.id?.toString() && r.date === today
-    );
-    setTodayRecord(found || null);
-    if (found) {
-      const inDone = Boolean(found.checkInTime);
-      const outDone = Boolean(found.checkOutTime);
-      setHasCheckedIn(inDone);
-      setHasCheckedOut(outDone);
-      // Jika sudah absen masuk dan belum absen pulang, arahkan default toggle ke absen pulang
-      if (inDone && !outDone) {
-        setSelectedType('pulang');
-      }
-    } else {
-      setHasCheckedIn(false);
-      setHasCheckedOut(false);
-      setSelectedType('masuk');
-    }
-  }, [records, user, today]);
-
   // ===== SUBMIT PRESENSI DARI KAMERA MODAL =====
   const handleCaptureAttendance = async (photoBase64: string, coords: { lat: number; lng: number }) => {
     const dateStr = today;
@@ -299,9 +347,10 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     const payload = {
       user_id: user.id,
       date: dateStr,
+      type: selectedType,
       status: isLate ? 'terlambat' : 'hadir',
       location: `TKK Inviolata Ruteng (${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)})`,
-      notes: `Presensi ${selectedType} terverifikasi liveness & GPS`,
+      notes: `Presensi ${selectedType} terverifikasi liveness & GPS (Jarak: ${userLocation.distance}m)`,
       photo: photoBase64,
       lat: coords.lat,
       lng: coords.lng,
@@ -321,10 +370,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         type: 'success',
       });
       if (selectedType === 'masuk') {
-        setHasCheckedIn(true);
         setSelectedType('pulang');
-      } else {
-        setHasCheckedOut(true);
       }
       await onRefresh();
       await fetchStaffData();
@@ -355,21 +401,30 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   const handleOpenKamera = () => {
     setStatusMessage({ text: '', type: '' });
 
+    // Radius Geofence check
+    const radius = geofenceConfig.radiusMeters || 50;
+    if (!userLocation.isVerified && !isSimulationMode && !isUnlockedByAdmin) {
+      setStatusMessage({
+        text: `📍 Anda berada di luar radius sekolah (${userLocation.distance} meter dari titik pusat). Batas toleransi adalah ${radius} meter. Silakan mendekat ke area sekolah atau aktifkan "Mode Simulasi Titik Sekolah" untuk uji coba.`,
+        type: 'error',
+      });
+      return;
+    }
+
     if (selectedType === 'masuk') {
       if (hasCheckedIn) {
         setStatusMessage({ text: 'ℹ️ Anda sudah melakukan Absen Datang hari ini.', type: 'error' });
         return;
       }
       if (currentMinutes < inStart) {
-        setStatusMessage({
-          text: `⏳ Jam presensi datang belum dimulai! Jadwal dibuka pukul ${geofenceConfig.checkInStartTime} WITA.`,
-          type: 'error',
-        });
-        return;
+        const proceed = window.confirm(
+          `⏳ Jam absen datang resmi dibuka pukul ${geofenceConfig.checkInStartTime} WITA (waktu sekarang: ${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WITA).\n\nApakah Anda ingin melanjutkan presensi dalam mode uji coba/fleksibel?`
+        );
+        if (!proceed) return;
       }
       if (currentMinutes > inDeadline && !isUnlockedByAdmin) {
         setStatusMessage({
-          text: `⏰ Batas jam masuk telah lewat (${geofenceConfig.checkInDeadlineTime} WITA)! Silakan ajukan dispensasi keterlambatan ke Admin Utama agar tombol absen diaktifkan.`,
+          text: `⏰ Batas jam masuk telah lewat (${geofenceConfig.checkInDeadlineTime} WITA)! Silakan ajukan permohonan dispensasi keterlambatan ke Admin Utama agar tombol absen diaktifkan.`,
           type: 'error',
         });
         setShowIzinForm(true);
@@ -390,11 +445,10 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         return;
       }
       if (currentMinutes < outStart) {
-        setStatusMessage({
-          text: `⏳ Jam presensi pulang belum dimulai! Jadwal pulang dibuka pukul ${geofenceConfig.checkOutStartTime || '12:30'} WITA.`,
-          type: 'error',
-        });
-        return;
+        const proceed = window.confirm(
+          `⏳ Jam presensi pulang resmi dibuka pukul ${geofenceConfig.checkOutStartTime || '12:30'} WITA.\n\nApakah Anda ingin melanjutkan absen pulang sekarang dalam mode uji coba?`
+        );
+        if (!proceed) return;
       }
       if (currentMinutes > outDeadline && !isUnlockedByAdmin) {
         setStatusMessage({
@@ -494,9 +548,29 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     }
   };
 
+  // Filter user records & stats
+  const userRecords = useMemo(() => {
+    return (records || []).filter(
+      (r) => String(r.userId) === String(user?.id) || String(r.user_id) === String(user?.id)
+    );
+  }, [records, user?.id]);
+
+  const stats = useMemo(() => {
+    const total = userRecords.length;
+    const tepatWaktu = userRecords.filter(
+      (r) => (r.status || '').toLowerCase() === 'hadir' && (r.checkInStatus || '').toUpperCase() !== 'TERLAMBAT'
+    ).length;
+    const terlambat = userRecords.filter(
+      (r) => (r.status || '').toLowerCase() === 'terlambat' || (r.checkInStatus || '').toUpperCase() === 'TERLAMBAT'
+    ).length;
+    const izin = myIzinList.filter((i) => i.status === 'approved').length;
+    return { total, tepatWaktu, terlambat, izin };
+  }, [userRecords, myIzinList]);
+
   // Menu Sidebar & Header
   const menuItems = [
     { id: 'dashboard' as MenuPage, icon: <LayoutDashboard className="w-4 h-4" />, label: 'Presensi Selfie (Utama)' },
+    { id: 'riwayat' as MenuPage, icon: <History className="w-4 h-4" />, label: 'Riwayat Presensi' },
     { id: 'dispensasi' as MenuPage, icon: <FileText className="w-4 h-4" />, label: 'Izin & Dispensasi Keterlambatan' },
     { id: 'pengumuman' as MenuPage, icon: <Bell className="w-4 h-4" />, label: 'Pengumuman Sekolah' },
     { id: 'profil' as MenuPage, icon: <Lock className="w-4 h-4" />, label: 'Profil Akun' },
@@ -504,6 +578,137 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
 
   // ===== RENDER TAB KONTEN DISPENSASI / PENGUMUMAN / PROFIL =====
   const renderOtherPages = () => {
+    if (currentPage === 'riwayat') {
+      return (
+        <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200 max-w-5xl mx-auto space-y-6 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
+            <div>
+              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <History className="w-5 h-5 text-emerald-600" />
+                Riwayat Presensi Saya
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Catatan absensi datang & pulang, status kehadiran, serta arsip foto verifikasi liveness GPS.
+              </p>
+            </div>
+            <button
+              onClick={() => onRefresh()}
+              className="border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-700 px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs self-start"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Segarkan Data</span>
+            </button>
+          </div>
+
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-center">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Presensi</span>
+              <span className="text-2xl font-black text-slate-900 mt-0.5 block">{stats.total}</span>
+            </div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-center">
+              <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block">Tepat Waktu</span>
+              <span className="text-2xl font-black text-emerald-700 mt-0.5 block">{stats.tepatWaktu}</span>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-center">
+              <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block">Terlambat</span>
+              <span className="text-2xl font-black text-amber-700 mt-0.5 block">{stats.terlambat}</span>
+            </div>
+            <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3.5 text-center">
+              <span className="text-[11px] font-bold text-sky-700 uppercase tracking-wider block">Izin Disetujui</span>
+              <span className="text-2xl font-black text-sky-700 mt-0.5 block">{stats.izin}</span>
+            </div>
+          </div>
+
+          {/* List of Records */}
+          <div className="space-y-3">
+            {userRecords.length === 0 ? (
+              <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-2">
+                <Calendar className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="text-slate-600 text-sm font-semibold">Belum ada rekaman presensi.</p>
+                <p className="text-slate-400 text-xs">Silakan lakukan presensi datang di menu utama.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-600 font-bold">
+                      <th className="py-3 px-3">Tanggal</th>
+                      <th className="py-3 px-3">Absen Datang</th>
+                      <th className="py-3 px-3">Absen Pulang</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3">Lokasi / Jarak</th>
+                      <th className="py-3 px-3 text-center">Foto Bukti</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {userRecords.map((rec) => {
+                      const isLate = (rec.status || '').toLowerCase() === 'terlambat' || (rec.checkInStatus || '').toUpperCase() === 'TERLAMBAT';
+                      return (
+                        <tr key={rec.id} className="hover:bg-slate-50/60 transition">
+                          <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
+                            {rec.date}
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span className="font-mono font-semibold text-slate-800">{rec.checkInTime || '-'}</span>
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span className="font-mono font-semibold text-slate-800">{rec.checkOutTime || '-'}</span>
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              isLate ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}>
+                              {isLate ? '⏰ Terlambat' : '✓ Tepat Waktu'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-600 max-w-[200px] truncate" title={rec.location || 'Area Sekolah'}>
+                            {rec.location || 'Area Sekolah'}
+                          </td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {rec.checkInPhotoPath ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewPhotoModal(rec.checkInPhotoPath)}
+                                  className="w-8 h-8 rounded-lg overflow-hidden border border-emerald-300 hover:scale-105 transition shadow-2xs relative group"
+                                  title="Lihat Foto Datang"
+                                >
+                                  <img src={rec.checkInPhotoPath} alt="Foto Masuk" className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center">
+                                    <Eye className="w-3.5 h-3.5 text-white" />
+                                  </div>
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic">-</span>
+                              )}
+                              {rec.checkOutPhotoPath && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewPhotoModal(rec.checkOutPhotoPath)}
+                                  className="w-8 h-8 rounded-lg overflow-hidden border border-blue-300 hover:scale-105 transition shadow-2xs relative group"
+                                  title="Lihat Foto Pulang"
+                                >
+                                  <img src={rec.checkOutPhotoPath} alt="Foto Pulang" className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center">
+                                    <Eye className="w-3.5 h-3.5 text-white" />
+                                  </div>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     if (currentPage === 'dispensasi') {
       return (
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 max-w-4xl mx-auto space-y-6">
@@ -733,35 +938,79 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={refreshGPS}
-                disabled={userLocation.isRefreshing}
-                className="border border-sky-300 bg-sky-50/50 hover:bg-sky-100 text-sky-700 px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${userLocation.isRefreshing ? 'animate-spin' : ''}`} />
-                <span>Refresh GPS</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleSimulationMode}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border shadow-2xs ${
+                    isSimulationMode
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                  title="Beralih ke mode simulasi titik sekolah"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                  <span>{isSimulationMode ? 'Simulasi: ON' : 'Mode Simulasi'}</span>
+                </button>
+                <button
+                  onClick={() => refreshGPS(true)}
+                  disabled={userLocation.isRefreshing}
+                  className="border border-sky-300 bg-sky-50/50 hover:bg-sky-100 text-sky-700 px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${userLocation.isRefreshing ? 'animate-spin' : ''}`} />
+                  <span>Refresh GPS</span>
+                </button>
+              </div>
             </div>
 
-            {/* Main Status Box (Green) */}
-            <div className="border border-emerald-300 bg-[#eaf8f1] rounded-2xl p-4 sm:p-4.5 space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-slate-900 font-bold text-sm sm:text-base">
-                  <div className="w-5 h-5 rounded-full border-2 border-emerald-600 flex items-center justify-center text-emerald-600">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  </div>
-                  <span>Terverifikasi di Area Sekolah ({userLocation.distance} meter)</span>
-                </div>
-                <span className="bg-[#059669] text-white text-[11px] font-black tracking-wider uppercase px-3 py-1 rounded-lg shrink-0 shadow-xs">
-                  SIAP ABSEN
-                </span>
+            {/* GPS Note if any */}
+            {gpsNote && (
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-sky-600 shrink-0" />
+                <span>{gpsNote}</span>
               </div>
-              <p className="text-xs text-slate-700 font-medium">
-                Titik Pusat GPS: <strong className="font-bold text-slate-900">{schoolLat.toFixed(6)}, {schoolLng.toFixed(6)}</strong> • Radius Geofence: <strong className="font-bold text-slate-900">{geofenceConfig.radiusMeters || 50} meter</strong>
-              </p>
-              {/* Progress Bar (Green line) */}
-              <div className="w-full h-2 bg-emerald-600 rounded-full shadow-inner" />
-            </div>
+            )}
+
+            {/* Main Status Box (Green if verified, Amber if outside radius) */}
+            {userLocation.isVerified ? (
+              <div className="border border-emerald-300 bg-[#eaf8f1] rounded-2xl p-4 sm:p-4.5 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-slate-900 font-bold text-sm sm:text-base">
+                    <div className="w-5 h-5 rounded-full border-2 border-emerald-600 flex items-center justify-center text-emerald-600">
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </div>
+                    <span>Terverifikasi di Area Sekolah ({userLocation.distance} meter)</span>
+                  </div>
+                  <span className="bg-[#059669] text-white text-[11px] font-black tracking-wider uppercase px-3 py-1 rounded-lg shrink-0 shadow-xs">
+                    SIAP ABSEN
+                  </span>
+                </div>
+                <p className="text-xs text-slate-700 font-medium">
+                  Titik Pusat GPS: <strong className="font-bold text-slate-900">{schoolLat.toFixed(6)}, {schoolLng.toFixed(6)}</strong> • Radius Geofence: <strong className="font-bold text-slate-900">{geofenceConfig.radiusMeters || 50} meter</strong>
+                </p>
+                {/* Progress Bar (Green line) */}
+                <div className="w-full h-2 bg-emerald-600 rounded-full shadow-inner" />
+              </div>
+            ) : (
+              <div className="border border-amber-300 bg-amber-50 rounded-2xl p-4 sm:p-4.5 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-amber-950 font-bold text-sm sm:text-base">
+                    <div className="w-5 h-5 rounded-full border-2 border-amber-600 flex items-center justify-center text-amber-600">
+                      <AlertTriangle className="w-3.5 h-3.5 stroke-[3]" />
+                    </div>
+                    <span>Di Luar Radius Sekolah ({userLocation.distance} meter)</span>
+                  </div>
+                  <span className="bg-amber-600 text-white text-[11px] font-black tracking-wider uppercase px-3 py-1 rounded-lg shrink-0 shadow-xs">
+                    DI LUAR RADIUS
+                  </span>
+                </div>
+                <p className="text-xs text-amber-900 font-medium">
+                  Jarak Anda {userLocation.distance}m dari pusat sekolah. Batas radius resmi: <strong>{geofenceConfig.radiusMeters || 50} meter</strong>. Silakan mendekat atau aktifkan tombol <strong>"Mode Simulasi"</strong> di atas saat pengujian di Laptop.
+                </p>
+                {/* Progress Bar (Amber line) */}
+                <div className="w-full h-2 bg-amber-500 rounded-full shadow-inner" />
+              </div>
+            )}
 
             {/* Row Anti-Fake GPS Protection */}
             <div className="border border-slate-200 bg-slate-50/70 rounded-xl p-3 sm:p-3.5 flex items-center justify-between text-xs text-slate-700">
@@ -793,7 +1042,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
               style={{ height: '100%', width: '100%', borderRadius: '1.25rem' }}
               zoomControl={false}
             >
-              <ChangeMapView coords={[schoolLat, schoolLng]} />
+              <ChangeMapView lat={schoolLat} lng={schoolLng} />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -819,6 +1068,29 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
                   </div>
                 </Popup>
               </Marker>
+              {/* Marker Posisi Pengguna jika berbeda koordinat */}
+              {(userLocation.lat !== schoolLat || userLocation.lng !== schoolLng) && (
+                <>
+                  <Marker position={[userLocation.lat, userLocation.lng]}>
+                    <Popup>
+                      <div className="text-xs p-1">
+                        <b className="text-slate-900">📍 Lokasi Perangkat Anda</b>
+                        <p className="text-slate-500 mt-0.5">Jarak: {userLocation.distance} meter</p>
+                        <p className={userLocation.isVerified ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
+                          {userLocation.isVerified ? '✓ Dalam Radius Sekolah' : '⚠️ Di Luar Radius Sekolah'}
+                        </p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                  <Polyline
+                    positions={[
+                      [schoolLat, schoolLng],
+                      [userLocation.lat, userLocation.lng],
+                    ]}
+                    pathOptions={{ color: '#ef4444', dashArray: '5, 5', weight: 2 }}
+                  />
+                </>
+              )}
             </MapContainer>
 
             {/* Bottom Left Radius Badge */}
@@ -1160,38 +1432,40 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#bfe5f8] via-[#cceaf9] to-[#b8def5] flex flex-col">
       {/* Sub Navigation Bar untuk Staf */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-sky-200 px-4 sm:px-6 py-2.5 flex items-center justify-between shrink-0 shadow-2xs">
-        <div className="flex items-center gap-2">
+      <div className="bg-white/90 backdrop-blur-md border-b border-sky-200 px-3 sm:px-6 py-2 flex items-center justify-between shrink-0 shadow-2xs gap-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar scroll-smooth">
           {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setCurrentPage(item.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 currentPage === item.id
                   ? 'bg-[#1e293b] text-white shadow-xs'
-                  : 'text-slate-700 hover:bg-slate-100'
+                  : 'text-slate-700 hover:bg-slate-100 bg-white/70 border border-slate-200/60'
               }`}
             >
               {item.icon}
-              <span className="hidden sm:inline">{item.label}</span>
+              <span>{item.label}</span>
             </button>
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => setShowPasswordModal(true)}
-            className="text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-2.5 py-1 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1"
+            className="text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1 shrink-0"
+            title="Ganti Password Akun"
           >
             <Lock className="w-3.5 h-3.5 text-blue-600" />
-            <span className="hidden sm:inline">Ganti Password</span>
+            <span className="hidden md:inline">Ganti Password</span>
           </button>
           <button
             onClick={onLogout}
-            className="text-rose-600 hover:text-rose-800 bg-white border border-rose-200 px-2.5 py-1 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1"
+            className="text-rose-600 hover:text-rose-800 bg-white border border-rose-200 px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1 shrink-0"
+            title="Keluar / Logout"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Keluar</span>
+            <span className="hidden md:inline">Keluar</span>
           </button>
         </div>
       </div>
@@ -1208,6 +1482,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         type={selectedType}
         user={user}
         schoolName={geofenceConfig.schoolName || 'TKK Inviolata Ruteng'}
+        radiusMeters={geofenceConfig.radiusMeters || 50}
         gpsInfo={{
           lat: userLocation.lat,
           lng: userLocation.lng,

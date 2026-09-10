@@ -10,8 +10,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // CORS
 app.use((req, res, next) => {
@@ -552,7 +552,7 @@ app.put('/api/users', async (req, res) => {
       return res.status(404).json({ success: false, error: 'User tidak ditemukan' });
     }
 
-    const { nip, name, email, role, phone, password, is_active } = req.body;
+    const { nip, name, email, role, phone, password, is_active, avatarUrl, position } = req.body;
     const current = inMemoryUsers[userIndex];
 
     const updatedUser = {
@@ -562,7 +562,9 @@ app.put('/api/users', async (req, res) => {
       email: email !== undefined ? email : current.email,
       role: role !== undefined ? role.toUpperCase() : current.role,
       phone: phone !== undefined ? phone : current.phone,
-      password: password !== undefined ? password : current.password,
+      password: (password && password.trim() !== '') ? password : current.password,
+      avatarUrl: avatarUrl !== undefined ? avatarUrl : current.avatarUrl,
+      position: position !== undefined ? position : current.position,
       is_active: is_active !== undefined ? is_active : current.is_active,
       updated_at: new Date().toISOString(),
     };
@@ -579,6 +581,8 @@ app.put('/api/users', async (req, res) => {
             email = COALESCE(${email || null}, email),
             nip = COALESCE(${nip || null}, nip),
             phone = COALESCE(${phone || null}, phone),
+            password = COALESCE(${(password && password.trim() !== '') ? password : null}, password),
+            profile_photo = COALESCE(${avatarUrl || null}, profile_photo),
             is_active = COALESCE(${is_active !== undefined ? is_active : null}, is_active),
             updated_at = NOW()
           WHERE id = ${parseInt(userId)}
@@ -675,7 +679,7 @@ app.get('/api/attendance', async (req, res) => {
 
 app.post('/api/attendance', async (req, res) => {
   try {
-    const { user_id, date, status, location, notes, photo, lat, lng } = req.body;
+    const { user_id, date, status, location, notes, photo, lat, lng, type } = req.body;
 
     if (!user_id || !date) {
       return res.status(400).json({ success: false, error: 'user_id dan date wajib diisi' });
@@ -690,6 +694,21 @@ app.post('/api/attendance', async (req, res) => {
     );
 
     const now = new Date();
+
+    // Validasi tipe eksplisit jika dikirim
+    if (type === 'masuk' && existing && existing.check_in_time) {
+      return res.status(400).json({
+        success: false,
+        error: 'Anda sudah melakukan Absen Datang hari ini.',
+      });
+    }
+
+    if (type === 'pulang' && !existing) {
+      return res.status(400).json({
+        success: false,
+        error: 'Anda belum melakukan Absen Datang hari ini. Silakan Absen Datang terlebih dahulu.',
+      });
+    }
 
     if (!existing) {
       // CHECK-IN

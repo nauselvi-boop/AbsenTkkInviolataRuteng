@@ -25,8 +25,33 @@ export const AdminGeofenceSettings: React.FC<AdminGeofenceSettingsProps> = ({
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
-    setFormData(config);
-  }, [config]);
+    if (config) {
+      setFormData((prev) => {
+        if (
+          prev.schoolName === config.schoolName &&
+          prev.latitude === config.latitude &&
+          prev.longitude === config.longitude &&
+          prev.radiusMeters === config.radiusMeters &&
+          prev.checkInStartTime === config.checkInStartTime &&
+          prev.checkInDeadlineTime === config.checkInDeadlineTime &&
+          prev.checkOutStartTime === config.checkOutStartTime &&
+          prev.checkOutDeadlineTime === config.checkOutDeadlineTime
+        ) {
+          return prev;
+        }
+        return config;
+      });
+    }
+  }, [
+    config?.schoolName,
+    config?.latitude,
+    config?.longitude,
+    config?.radiusMeters,
+    config?.checkInStartTime,
+    config?.checkInDeadlineTime,
+    config?.checkOutStartTime,
+    config?.checkOutDeadlineTime,
+  ]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -59,10 +84,48 @@ export const AdminGeofenceSettings: React.FC<AdminGeofenceSettingsProps> = ({
   const lng = Number(formData.longitude) || 120.4689;
   const radius = Number(formData.radiusMeters) || 50;
 
+  const handleDetectCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Browser tidak mendukung geolokasi');
+      return;
+    }
+    setIsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLoading(false);
+        setFormData((prev) => ({
+          ...prev,
+          latitude: Number(pos.coords.latitude.toFixed(7)),
+          longitude: Number(pos.coords.longitude.toFixed(7)),
+        }));
+        setMessage({ text: '📍 Koordinat GPS perangkat saat ini berhasil diambil!', type: 'success' });
+      },
+      (err) => {
+        setIsLoading(false);
+        alert('Gagal mengambil koordinat: ' + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h3 className="text-xl font-bold text-slate-800 mb-4">🏫 Konfigurasi Geofencing & Jam Sekolah</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+          <div>
+            <h3 className="text-xl font-bold text-slate-800">🏫 Konfigurasi Geofencing & Jam Sekolah</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Tentukan titik pusat koordinat sekolah, radius toleransi absen, dan jam kerja.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleDetectCurrentLocation}
+            disabled={isLoading}
+            className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs self-start"
+            title="Ambil koordinat GPS perangkat saya saat ini"
+          >
+            <span>📍 Ambil Koordinat GPS Saya Saat Ini</span>
+          </button>
+        </div>
 
         {/* MAP */}
         <div className="h-[300px] rounded-xl overflow-hidden mb-6 border border-slate-200">
