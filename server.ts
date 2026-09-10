@@ -1300,4 +1300,10 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start the standalone listener if NOT running inside Vercel serverless functions
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
+export { app };

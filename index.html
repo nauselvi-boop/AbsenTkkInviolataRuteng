@@ -1,26 +1,37 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>AbsenKU Profesional</title>
     <meta name="description" content="Sistem Informasi Presensi Online TKK Inviolata Ruteng dengan Live Tracking GPS, Grafik Guru & Pegawai, Grafik Kehadiran, Rekap Kehadiran Realtime, serta Pratinjau Aplikasi Mobile." />
     <meta property="og:title" content="AbsenKU Profesional" />
     <meta property="og:description" content="Sistem Informasi Presensi Online TKK Inviolata Ruteng dengan Live Tracking GPS, Grafik Guru & Pegawai, Grafik Kehadiran, Rekap Kehadiran Realtime, serta Pratinjau Aplikasi Mobile." />
+    <meta property="og:image" content="/logo-tk1.png" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
 
-    <!-- ===== LEAFET CSS (WAJIB UNTUK MAP) ===== -->
+    <!-- Favicon & Touch Icons -->
+    <link rel="icon" type="image/png" href="/logo-tk1.png" />
+    <link rel="shortcut icon" href="/logo-tk1.png" />
+    <link rel="apple-touch-icon" href="/logo-tk1.png" />
+
+    <!-- Mobile Web App Meta -->
+    <meta name="theme-color" content="#0284c7" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="AbsenKU" />
+
+    <!-- ===== LEAFLET CSS (WAJIB UNTUK MAP) ===== -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      crossorigin=""
     />
-    <!-- ===== END LEAFET ===== -->
-
-    <style>
-      /* (opsional) tambahkan custom style jika diperlukan */
-    </style>
+    <!-- ===== END LEAFLET ===== -->
   </head>
-  <body>
+  <body class="bg-slate-50 text-slate-900 antialiased selection:bg-sky-500 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
