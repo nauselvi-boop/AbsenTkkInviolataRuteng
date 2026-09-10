@@ -25,8 +25,33 @@ export const AdminGeofenceSettings: React.FC<AdminGeofenceSettingsProps> = ({
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
-    setFormData(config);
-  }, [config]);
+    if (config) {
+      setFormData((prev) => {
+        if (
+          prev.schoolName === config.schoolName &&
+          prev.latitude === config.latitude &&
+          prev.longitude === config.longitude &&
+          prev.radiusMeters === config.radiusMeters &&
+          prev.checkInStartTime === config.checkInStartTime &&
+          prev.checkInDeadlineTime === config.checkInDeadlineTime &&
+          prev.checkOutStartTime === config.checkOutStartTime &&
+          prev.checkOutDeadlineTime === config.checkOutDeadlineTime
+        ) {
+          return prev;
+        }
+        return config;
+      });
+    }
+  }, [
+    config?.schoolName,
+    config?.latitude,
+    config?.longitude,
+    config?.radiusMeters,
+    config?.checkInStartTime,
+    config?.checkInDeadlineTime,
+    config?.checkOutStartTime,
+    config?.checkOutDeadlineTime,
+  ]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

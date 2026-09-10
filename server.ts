@@ -552,7 +552,7 @@ app.put('/api/users', async (req, res) => {
       return res.status(404).json({ success: false, error: 'User tidak ditemukan' });
     }
 
-    const { nip, name, email, role, phone, password, is_active } = req.body;
+    const { nip, name, email, role, phone, password, is_active, avatarUrl, position } = req.body;
     const current = inMemoryUsers[userIndex];
 
     const updatedUser = {
@@ -562,7 +562,9 @@ app.put('/api/users', async (req, res) => {
       email: email !== undefined ? email : current.email,
       role: role !== undefined ? role.toUpperCase() : current.role,
       phone: phone !== undefined ? phone : current.phone,
-      password: password !== undefined ? password : current.password,
+      password: (password && password.trim() !== '') ? password : current.password,
+      avatarUrl: avatarUrl !== undefined ? avatarUrl : current.avatarUrl,
+      position: position !== undefined ? position : current.position,
       is_active: is_active !== undefined ? is_active : current.is_active,
       updated_at: new Date().toISOString(),
     };
@@ -579,6 +581,8 @@ app.put('/api/users', async (req, res) => {
             email = COALESCE(${email || null}, email),
             nip = COALESCE(${nip || null}, nip),
             phone = COALESCE(${phone || null}, phone),
+            password = COALESCE(${(password && password.trim() !== '') ? password : null}, password),
+            profile_photo = COALESCE(${avatarUrl || null}, profile_photo),
             is_active = COALESCE(${is_active !== undefined ? is_active : null}, is_active),
             updated_at = NOW()
           WHERE id = ${parseInt(userId)}

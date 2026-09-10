@@ -9,6 +9,7 @@ import { TrackingLocationCard } from './absenku/TrackingLocationCard';
 import { ReportRealtimeTable } from './absenku/ReportRealtimeTable';
 import { AbsenKuLogo } from './absenku/AbsenKuLogo';
 import { SelfieDetailModal, ProfilSekolahModal } from './absenku/AbsenKuModals';
+import { AdminProfileEditor } from './absenku/AdminProfileEditor';
 import {
   Activity,
   Users,
@@ -35,6 +36,9 @@ import {
   Search,
   RefreshCw,
   Sparkles,
+  Eye,
+  Check,
+  X,
 } from 'lucide-react';
 
 interface IzinRequest {
@@ -60,6 +64,7 @@ interface Announcement {
 }
 
 interface AdminDashboardProps {
+  currentUser?: User;
   users: User[];
   records: AttendanceRecord[];
   geofenceConfig: GeofenceConfig;
@@ -74,6 +79,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  currentUser,
   users,
   records,
   geofenceConfig,
@@ -179,6 +185,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const [selectedAttachmentModal, setSelectedAttachmentModal] = useState<string | null>(null);
+
   const handleApproveIzin = async (id: number) => {
     try {
       const res = await fetch('/api/izin', {
@@ -188,7 +196,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
       const data = await res.json();
       if (data.success) {
-        alert('✅ Izin disetujui.');
+        setAktivasiNotification({
+          text: '✅ Permohonan izin telah disetujui (diterima).',
+          type: 'success',
+        });
         await fetchIzin();
       } else {
         alert('❌ Gagal approve: ' + data.error);
@@ -207,7 +218,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
       const data = await res.json();
       if (data.success) {
-        alert('❌ Izin ditolak.');
+        setAktivasiNotification({
+          text: 'ℹ️ Permohonan izin telah ditolak.',
+          type: 'error',
+        });
         await fetchIzin();
       } else {
         alert('❌ Gagal reject: ' + data.error);
@@ -217,9 +231,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const handleDeleteIzin = async (id: number) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus data permohonan izin ini?')) return;
+    try {
+      const res = await fetch(`/api/izin?id=${id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAktivasiNotification({
+          text: '🗑️ Data permohonan izin berhasil dihapus.',
+          type: 'success',
+        });
+        await fetchIzin();
+      } else {
+        alert('❌ Gagal menghapus: ' + (data.error || 'Terjadi kesalahan'));
+      }
+    } catch (error: any) {
+      alert('❌ Error: ' + error.message);
+    }
+  };
+
   const openAttachment = (base64: string) => {
     if (!base64) return;
-    window.open(base64, '_blank');
+    setSelectedAttachmentModal(base64);
   };
 
   // AKTIFKAN TOMBOL ABSEN UNTUK GURU / PEGAWAI TERTENTU
@@ -372,15 +407,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         return renderPengumuman();
       case 'profile':
         return (
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-xl font-bold text-slate-800 mb-4">Profil Admin Utama</h3>
-            <div className="space-y-2 text-sm text-slate-700">
-              <p><strong>Nama Lengkap:</strong> {users.find((u) => u.role === 'ADMIN')?.name || 'Sr. Maria Inviolata, S.Pd.'}</p>
-              <p><strong>Jabatan:</strong> Kepala Sekolah / Admin Utama TKK Inviolata Ruteng</p>
-              <p><strong>Email:</strong> {users.find((u) => u.role === 'ADMIN')?.email || 'admin@tkkinviolata.sch.id'}</p>
-              <p><strong>NIP:</strong> {users.find((u) => u.role === 'ADMIN')?.nip || '197508152002122001'}</p>
-            </div>
-          </div>
+          <AdminProfileEditor
+            currentUser={currentUser}
+            users={users}
+            onUpdateUser={onUpdateUser}
+          />
         );
       default:
         return <div>Halaman tidak ditemukan.</div>;
@@ -831,67 +862,112 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const filtered = izinRequests.filter(req => req.type === 'tidak_masuk');
 
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-4">
-          <FileText className="w-5 h-5 text-blue-600" />
-          Izin Tidak Masuk Sekolah
-        </h3>
-        <p className="text-sm text-slate-600 mb-4">Daftar permohonan izin tidak masuk sekolah (sakit, dinas, dll) dengan bukti upload.</p>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-600" />
+              Permohonan Izin Tidak Masuk Sekolah
+            </h3>
+            <p className="text-sm text-slate-600 mt-0.5">
+              Daftar guru & pegawai yang mengajukan permohonan izin tidak hadir (sakit, tugas dinas, atau keperluan mendesak) dilengkapi bukti lampiran.
+            </p>
+          </div>
+          <span className="bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold px-3 py-1.5 rounded-xl">
+            Total: {filtered.length} Permohonan
+          </span>
+        </div>
 
         {izinLoading ? (
-          <p className="text-center text-slate-500">Memuat data...</p>
+          <p className="text-center text-slate-500 py-6 text-sm">Memuat data permohonan izin...</p>
         ) : filtered.length === 0 ? (
-          <p className="text-center text-slate-400">Tidak ada permohonan izin tidak masuk.</p>
+          <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+            <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <p className="text-slate-600 font-semibold text-sm">Tidak ada data permohonan izin tidak masuk.</p>
+            <p className="text-xs text-slate-400 mt-1">Permohonan yang diajukan oleh guru akan otomatis masuk ke tabel ini.</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-600 font-semibold">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-100/80 text-slate-700 text-xs uppercase font-extrabold tracking-wider">
                 <tr>
-                  <th className="p-3 text-left">Nama</th>
-                  <th className="p-3 text-left">NIP</th>
-                  <th className="p-3 text-left">Tanggal</th>
-                  <th className="p-3 text-left">Alasan</th>
-                  <th className="p-3 text-left">Bukti</th>
-                  <th className="p-3 text-left">Status</th>
-                  <th className="p-3 text-center">Aksi</th>
+                  <th className="p-3.5">Nama Lengkap</th>
+                  <th className="p-3.5">NIP</th>
+                  <th className="p-3.5">Tanggal</th>
+                  <th className="p-3.5">Alasan Izin</th>
+                  <th className="p-3.5 text-center">Bukti Lampiran</th>
+                  <th className="p-3.5 text-center">Status</th>
+                  <th className="p-3.5 text-center">Aksi Keputusan</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {filtered.map((req) => (
-                  <tr key={req.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="p-3 font-medium">{req.user_name}</td>
-                    <td className="p-3 text-xs">{req.user_nip}</td>
-                    <td className="p-3 text-xs">{req.date}</td>
-                    <td className="p-3 text-xs max-w-xs truncate">{req.reason}</td>
-                    <td className="p-3 text-center">
+                  <tr key={req.id} className="hover:bg-slate-50/80 transition">
+                    <td className="p-3.5 font-bold text-slate-900">{req.user_name}</td>
+                    <td className="p-3.5 text-xs font-mono text-slate-600">{req.user_nip || '-'}</td>
+                    <td className="p-3.5 text-xs text-slate-700 whitespace-nowrap">{req.date}</td>
+                    <td className="p-3.5 text-xs text-slate-700 max-w-xs">{req.reason}</td>
+                    <td className="p-3.5 text-center">
                       {req.attachment ? (
                         <button
                           onClick={() => openAttachment(req.attachment!)}
-                          className="text-blue-600 hover:text-blue-800 text-xs font-semibold underline flex items-center gap-1"
+                          className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5 shadow-2xs"
                         >
-                          <FileText className="w-3 h-3" />
-                          Lihat
+                          <Eye className="w-3.5 h-3.5 text-blue-600" />
+                          Lihat Bukti
                         </button>
                       ) : (
-                        <span className="text-gray-400 text-xs">Tidak ada</span>
+                        <span className="text-slate-400 text-xs italic">Tidak ada</span>
                       )}
                     </td>
-                    <td className="p-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : req.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {req.status === 'pending' ? '⏳ Menunggu' : req.status === 'approved' ? '✅ Disetujui' : '❌ Ditolak'}
+                    <td className="p-3.5 text-center">
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-black uppercase ${
+                          req.status === 'pending'
+                            ? 'bg-amber-100 text-amber-800'
+                            : req.status === 'approved'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-rose-100 text-rose-800'
+                        }`}
+                      >
+                        {req.status === 'pending'
+                          ? '⏳ Menunggu'
+                          : req.status === 'approved'
+                          ? '✅ Diterima'
+                          : '❌ Ditolak'}
                       </span>
                     </td>
-                    <td className="p-3 text-center">
-                      {req.status === 'pending' && (
-                        <div className="flex justify-center gap-2">
-                          <button onClick={() => handleApproveIzin(req.id)} className="text-green-600 hover:text-green-800 p-1" title="Setujui">
-                            <CheckCircle className="w-4 h-4" />
+                    <td className="p-3.5">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {req.status !== 'approved' && (
+                          <button
+                            onClick={() => handleApproveIzin(req.id)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                            title="Terima / Setujui Izin"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Terima</span>
                           </button>
-                          <button onClick={() => handleRejectIzin(req.id)} className="text-red-600 hover:text-red-800 p-1" title="Tolak">
-                            <XCircle className="w-4 h-4" />
+                        )}
+                        {req.status !== 'rejected' && (
+                          <button
+                            onClick={() => handleRejectIzin(req.id)}
+                            className="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                            title="Tolak Izin"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Tolak</span>
                           </button>
-                        </div>
-                      )}
+                        )}
+                        <button
+                          onClick={() => handleDeleteIzin(req.id)}
+                          className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                          title="Hapus Permohonan"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1031,6 +1107,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Modal Profil Sekolah */}
       {isProfilModalOpen && (
         <ProfilSekolahModal onClose={() => setIsProfilModalOpen(false)} />
+      )}
+
+      {/* Modal Preview Bukti Lampiran Izin */}
+      {selectedAttachmentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 rounded-3xl p-4 max-w-2xl w-full overflow-hidden shadow-2xl border border-slate-700 space-y-3">
+            <div className="flex items-center justify-between px-2 text-white">
+              <span className="text-xs font-bold flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-blue-400" />
+                Bukti Lampiran Permohonan Izin
+              </span>
+              <button
+                onClick={() => setSelectedAttachmentModal(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-auto rounded-2xl bg-black flex items-center justify-center p-2">
+              {selectedAttachmentModal.startsWith('data:image/') || selectedAttachmentModal.startsWith('http') ? (
+                <img
+                  src={selectedAttachmentModal}
+                  alt="Bukti Lampiran Izin"
+                  className="max-h-[65vh] w-auto object-contain rounded-xl"
+                />
+              ) : (
+                <iframe
+                  src={selectedAttachmentModal}
+                  title="Dokumen Lampiran"
+                  className="w-full h-[60vh] rounded-xl bg-white"
+                />
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setSelectedAttachmentModal(null)}
+                className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

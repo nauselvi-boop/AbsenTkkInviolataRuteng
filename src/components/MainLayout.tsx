@@ -10,15 +10,7 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
-  Laptop,
-  Smartphone,
-  Layers,
   Clock,
-  Sparkles,
-  ArrowRightLeft,
-  X,
-  Maximize2,
-  Minimize2,
 } from 'lucide-react';
 import { AbsenKuLogo } from './absenku/AbsenKuLogo';
 import { User } from '../types';
@@ -29,13 +21,7 @@ interface MainLayoutProps {
   onLogout: () => void;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
-  viewMode?: 'showcase' | 'desktop' | 'mobile';
-  onViewModeChange?: (mode: 'showcase' | 'desktop' | 'mobile') => void;
   allUsers?: User[];
-  onQuickSwitchUser?: (u: User) => void;
-  mobileMockupElement?: ReactNode;
-  showPhoneMockup?: boolean;
-  onTogglePhoneMockup?: () => void;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
@@ -44,17 +30,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onLogout,
   activeTab = 'monitoring',
   onTabChange,
-  viewMode = 'showcase',
-  onViewModeChange,
-  allUsers = [],
-  onQuickSwitchUser,
-  mobileMockupElement,
-  showPhoneMockup = true,
-  onTogglePhoneMockup,
 }) => {
   const [isIzinOpen, setIsIzinOpen] = useState(true);
   const [currentTimeStr, setCurrentTimeStr] = useState('');
-  const [isPhoneMinimized, setIsPhoneMinimized] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -112,105 +90,38 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             </div>
           </div>
 
-          {/* Sisi Tengah: Mode Switcher (Showcase vs Full Laptop vs Full HP) */}
-          {onViewModeChange && (
-            <div className="hidden md:flex items-center bg-[#0072aa] p-1 rounded-xl border border-white/20 text-xs">
-              <button
-                onClick={() => onViewModeChange('showcase')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold transition ${
-                  viewMode === 'showcase'
-                    ? 'bg-white text-[#0088cc] shadow-sm'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-                title="Tampilan Laptop di Belakang dan HP di Depan"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Showcase (Laptop + HP)</span>
-              </button>
-              <button
-                onClick={() => onViewModeChange('desktop')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold transition ${
-                  viewMode === 'desktop'
-                    ? 'bg-white text-[#0088cc] shadow-sm'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-                title="Tampilan Laptop Penuh"
-              >
-                <Laptop className="w-3.5 h-3.5" />
-                <span>Laptop Saja</span>
-              </button>
-              <button
-                onClick={() => onViewModeChange('mobile')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold transition ${
-                  viewMode === 'mobile'
-                    ? 'bg-white text-[#0088cc] shadow-sm'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-                title="Tampilan HP Mobile Penuh"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>HP Saja</span>
-              </button>
-            </div>
-          )}
-
           {/* Sisi Kanan: Jam WITA & User Profile */}
           <div className="flex items-center gap-3 text-xs">
             {currentTimeStr && (
-              <div className="hidden lg:flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg text-[11px] font-mono border border-white/15">
+              <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl text-[11px] font-mono border border-white/15">
                 <Clock className="w-3.5 h-3.5 text-amber-300" />
                 <span>{currentTimeStr}</span>
               </div>
             )}
 
-            {/* Quick Switch User (Untuk memudahkan simulasi pengujian guru/pegawai) */}
-            {onQuickSwitchUser && allUsers.length > 0 && (
-              <div className="hidden xl:flex items-center gap-1.5 bg-[#0072aa] px-2 py-1 rounded-lg border border-white/20">
-                <ArrowRightLeft className="w-3 h-3 text-emerald-300" />
-                <span className="text-[10px] font-semibold text-white/80">Simulasi Akun:</span>
-                <select
-                  value={user?.id || ''}
-                  onChange={(e) => {
-                    const found = allUsers.find((u) => String(u.id) === e.target.value);
-                    if (found) onQuickSwitchUser(found);
-                  }}
-                  className="bg-white text-slate-800 text-[11px] font-bold rounded px-1.5 py-0.5 border-none outline-none cursor-pointer"
-                >
-                  {allUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Tombol Toggle Mockup HP */}
-            {onTogglePhoneMockup && viewMode === 'showcase' && (
-              <button
-                onClick={onTogglePhoneMockup}
-                className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-2.5 py-1 rounded-lg shadow-sm text-xs transition"
-                title="Tampilkan / Sembunyikan HP Mobile di Depan"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{showPhoneMockup ? 'Sembunyikan HP' : 'Buka HP'}</span>
-              </button>
-            )}
-
-            {/* User Pill & Logout */}
+            {/* User Pill (Klik untuk menuju Profil & Password Admin) & Logout */}
             <div className="flex items-center gap-2 pl-2 border-l border-white/20">
-              <img
-                src={user?.avatarUrl || 'https://ui-avatars.com/api/?name=Admin&background=8B5CF6&color=fff&size=36'}
-                alt="Avatar"
-                className="w-7 h-7 rounded-full border border-white object-cover"
-              />
-              <span className="font-bold hidden sm:inline">{user?.name?.split(' ')[0] || 'Admin'}</span>
+              <button
+                onClick={() => onTabChange && onTabChange('profile')}
+                className="flex items-center gap-2 hover:bg-white/10 px-2.5 py-1 rounded-xl transition text-left"
+                title="Buka Pengaturan Profil & Password"
+              >
+                <img
+                  src={user?.avatarUrl || 'https://ui-avatars.com/api/?name=Admin&background=8B5CF6&color=fff&size=36'}
+                  alt="Avatar"
+                  className="w-7 h-7 rounded-full border border-white object-cover shadow-2xs"
+                />
+                <div className="hidden sm:block leading-tight">
+                  <span className="font-bold text-xs block">{user?.name?.split(' ')[0] || 'Admin'}</span>
+                  <span className="text-[10px] text-white/70 block">Admin Utama</span>
+                </div>
+              </button>
               <button
                 onClick={onLogout}
-                className="p-1.5 rounded-lg bg-red-600/80 hover:bg-red-700 text-white transition ml-1"
+                className="p-1.5 rounded-xl bg-red-600/80 hover:bg-red-700 text-white transition ml-1 shadow-2xs"
                 title="Keluar / Logout"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -320,60 +231,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         <main className="flex-1 overflow-y-auto bg-slate-100 p-4 md:p-6 relative">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
-
-        {/* Foreground Interactive Smartphone Mockup (Posisi di depan seperti pada gambar) */}
-        {viewMode === 'showcase' && showPhoneMockup && mobileMockupElement && (
-          <aside
-            className={`fixed right-6 bottom-4 z-40 transition-all duration-300 ${
-              isPhoneMinimized ? 'translate-y-[calc(100%-48px)]' : 'translate-y-0'
-            }`}
-          >
-            {/* Header Kontrol HP Mockup */}
-            <div className="bg-slate-900 text-white px-4 py-2 rounded-t-2xl shadow-xl flex items-center justify-between border-t border-x border-slate-700 text-xs select-none">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="font-bold">📱 Tampilan HP Guru & Pegawai</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setIsPhoneMinimized(!isPhoneMinimized)}
-                  className="p-1 hover:bg-slate-800 rounded text-slate-300 hover:text-white"
-                  title={isPhoneMinimized ? 'Perbesar HP' : 'Kecilkan HP'}
-                >
-                  {isPhoneMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
-                </button>
-                {onTogglePhoneMockup && (
-                  <button
-                    onClick={onTogglePhoneMockup}
-                    className="p-1 hover:bg-slate-800 rounded text-slate-300 hover:text-white"
-                    title="Tutup HP"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Frame HP */}
-            <div className="bg-slate-950 p-2 rounded-b-[40px] shadow-2xl border-b border-x border-slate-700 max-h-[85vh] overflow-y-auto">
-              {mobileMockupElement}
-            </div>
-          </aside>
-        )}
-
-        {/* Floating Button jika HP sedang disembunyikan */}
-        {viewMode === 'showcase' && (!showPhoneMockup || isPhoneMinimized) && (
-          <button
-            onClick={() => {
-              if (!showPhoneMockup && onTogglePhoneMockup) onTogglePhoneMockup();
-              setIsPhoneMinimized(false);
-            }}
-            className="fixed right-6 bottom-6 z-40 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 text-xs font-bold transition hover:scale-105"
-          >
-            <Smartphone className="w-4 h-4" />
-            <span>📱 Buka HP Guru & Pegawai</span>
-          </button>
-        )}
       </div>
     </div>
   );
