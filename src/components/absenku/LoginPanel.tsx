@@ -30,9 +30,9 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   defaultUser,
 }) => {
   const [email, setEmail] = useState<string>(
-    defaultUser ? defaultUser.email : ''
+    defaultUser ? defaultUser.email : 'kepala@tkkinviolata.sch.id'
   );
-  const [password, setPassword] = useState<string>('');
+  const [password, setPassword] = useState<string>('admin123');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [rememberMe, setRememberMe] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -44,33 +44,13 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
 
   // Filter user berdasarkan query
-  // Filter khusus untuk Guru & Pegawai (mengecualikan SEMUA jenis akun Administrator/Admin Utama)
-  const isAdministrator = (u: UserType) => {
-    const role = (u.role || '').toUpperCase().trim();
-    const name = (u.name || '').toLowerCase().trim();
-    const email = (u.email || '').toLowerCase().trim();
-    return (
-      role === 'ADMIN' ||
-      role === 'ADMINISTRATOR' ||
-      role === 'ADMIN_UTAMA' ||
-      role.includes('ADMIN') ||
-      name.includes('admin') ||
-      name.includes('sr. maria') ||
-      name.includes('kepala sekolah') ||
-      email.includes('admin')
-    );
-  };
-
-  // Daftar guru & pegawai resmi (hanya GURU dan PEGAWAI)
-  const staffUsers = users.filter((u) => !isAdministrator(u));
-
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredUsers([]);
       return;
     }
     const query = searchQuery.toLowerCase().trim();
-    const filtered = staffUsers.filter(
+    const filtered = users.filter(
       (u) =>
         u.name.toLowerCase().includes(query) ||
         u.email.toLowerCase().includes(query) ||
@@ -78,15 +58,27 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
         (u.role && u.role.toLowerCase().includes(query))
     );
     setFilteredUsers(filtered);
-  }, [searchQuery, staffUsers]);
+  }, [searchQuery, users]);
 
-  // Fungsi saat guru/pegawai dipilih dari daftar
+  // Daftar guru & pegawai (kecuali admin)
+  const staffUsers = users.filter((u) => u.role !== 'ADMIN');
+
+  // Fungsi login dari hasil pencarian atau daftar
   const handleUserSelect = (user: UserType) => {
-    setEmail(user.email || user.nip);
-    setPassword((user as any).password || (user.role === 'PEGAWAI' ? 'pegawai123' : 'guru123'));
-    setErrorMessage('');
+    onLogin(user);
     setSearchQuery('');
     setFilteredUsers([]);
+  };
+
+  // Admin & Guru & Pegawai untuk tombol demo
+  const adminUser = users.find((u) => u.role === 'ADMIN') || users[0];
+  const guruUser = users.find((u) => u.role === 'GURU') || users[1];
+  const pegawaiUser = users.find((u) => u.role === 'PEGAWAI') || users[users.length - 1];
+
+  const handleQuickSelect = (user: UserType, defaultPass: string) => {
+    setEmail(user.email);
+    setPassword(defaultPass);
+    setErrorMessage('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -100,27 +92,22 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
     const foundUser = users.find(
       (u) =>
         u.email.toLowerCase() === cleanInput ||
-        (u.nip && u.nip.toLowerCase() === cleanInput)
+        u.nip.toLowerCase() === cleanInput
     );
 
     if (foundUser) {
       onLogin(foundUser);
     } else {
-      // Fallback
-      const adminFallback = users.find((u) => isAdministrator(u)) || users[0];
-      const guruFallback = users.find((u) => u.role === 'GURU') || users[1];
-      const pegawaiFallback = users.find((u) => u.role === 'PEGAWAI') || users[users.length - 1];
-
-      if (cleanInput.includes('guru') || cleanInput.includes('yuliana') || cleanInput.includes('fransiska')) {
-        onLogin(guruFallback);
+      if (cleanInput.includes('guru') || cleanInput.includes('yuliana')) {
+        onLogin(guruUser);
       } else if (
         cleanInput.includes('pegawai') ||
         cleanInput.includes('tu') ||
         cleanInput.includes('yohanes')
       ) {
-        onLogin(pegawaiFallback);
+        onLogin(pegawaiUser);
       } else {
-        onLogin(adminFallback);
+        onLogin(adminUser);
       }
     }
   };
@@ -316,6 +303,80 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
                 )}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Tombol Demo (tetap) */}
+        <div className="mt-5 bg-white/70 backdrop-blur-md border border-[#36495b]/30 rounded-2xl p-3.5 shadow-sm text-xs">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-bold text-[#36495b] flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Pilih Akun Demo TKK Inviolata:</span>
+            </span>
+            {onBypass && (
+              <button
+                onClick={onBypass}
+                className="text-[10px] text-slate-500 hover:text-slate-800 font-semibold underline"
+              >
+                Masuk Langsung
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => handleQuickSelect(adminUser, 'admin123')}
+              className={`p-2 rounded-xl border text-left transition flex items-center gap-2 ${
+                email === adminUser.email
+                  ? 'bg-[#36495b] text-white border-[#36495b] shadow-xs'
+                  : 'bg-white/80 hover:bg-white text-slate-700 border-slate-300'
+              }`}
+            >
+              <div className="w-6 h-6 rounded-md bg-amber-400 text-slate-900 flex items-center justify-center font-bold text-[10px] shrink-0">
+                ADM
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-[11px] truncate">Admin Utama</p>
+                <p className="text-[9px] opacity-75 truncate">Sr. Maria</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleQuickSelect(guruUser, 'guru123')}
+              className={`p-2 rounded-xl border text-left transition flex items-center gap-2 ${
+                email === guruUser.email
+                  ? 'bg-[#36495b] text-white border-[#36495b] shadow-xs'
+                  : 'bg-white/80 hover:bg-white text-slate-700 border-slate-300'
+              }`}
+            >
+              <div className="w-6 h-6 rounded-md bg-[#0088cc] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                GRU
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-[11px] truncate">Guru TK</p>
+                <p className="text-[9px] opacity-75 truncate">Ibu Yuliana</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleQuickSelect(pegawaiUser, 'pegawai123')}
+              className={`p-2 rounded-xl border text-left transition flex items-center gap-2 ${
+                email === pegawaiUser.email
+                  ? 'bg-[#36495b] text-white border-[#36495b] shadow-xs'
+                  : 'bg-white/80 hover:bg-white text-slate-700 border-slate-300'
+              }`}
+            >
+              <div className="w-6 h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                PEG
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-[11px] truncate">Pegawai TU</p>
+                <p className="text-[9px] opacity-75 truncate">Bpk. Yohanes</p>
+              </div>
+            </button>
           </div>
         </div>
 

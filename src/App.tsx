@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, LogOut } from 'lucide-react';
 import { LoginPanel } from './components/absenku/LoginPanel';
 import { AdminDashboard } from './components/AdminDashboard';
 import { StaffDashboard } from './components/StaffDashboard';
 import { MainLayout } from './components/MainLayout';
 import { MobileAbsenKuHome } from './components/absenku/MobileAbsenKuHome';
 import { MobileStaffDashboard } from './components/absenku/MobileStaffDashboard';
+import { MobileAppMockup } from './components/absenku/MobileAppMockup';
 import { User, AttendanceRecord, GeofenceConfig, AttendanceUnlockRequest } from './types';
 
 const DUMMY_USERS: User[] = [
@@ -60,6 +60,10 @@ function App() {
   const [geofenceConfig, setGeofenceConfig] = useState<GeofenceConfig>(DEFAULT_GEOFENCE);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Dual Showcase State (Laptop di Belakang + HP di Depan seperti di gambar)
+  const [viewMode, setViewMode] = useState<'showcase' | 'desktop' | 'mobile'>('showcase');
+  const [showPhoneMockup, setShowPhoneMockup] = useState(true);
 
   // Unlock / Dispensasi Requests State
   const [unlockRequests, setUnlockRequests] = useState<AttendanceUnlockRequest[]>([
@@ -279,27 +283,6 @@ function App() {
     }
   };
 
-  const [timeStr, setTimeStr] = useState('');
-
-  useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      const options: Intl.DateTimeFormatOptions = {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      };
-      setTimeStr(`${now.toLocaleDateString('id-ID', options)} WITA`);
-    };
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   const handleUpdateUser = async (updatedUser: User) => {
     try {
       const res = await fetch(`/api/users?id=${updatedUser.id}`, {
@@ -310,13 +293,9 @@ function App() {
       const data = await res.json();
       if (res.ok && data.success) {
         await fetchUsers();
-        if (user && String(user.id) === String(updatedUser.id)) {
-          const merged = { ...user, ...updatedUser };
-          setUser(merged);
-          localStorage.setItem('user', JSON.stringify(merged));
-        }
+        alert('✅ User berhasil diupdate!');
       } else {
-        alert('❌ Gagal update: ' + (data.error || data.detail));
+        alert('❌ Gagal update user: ' + (data.error || data.detail));
       }
     } catch (error) {
       console.error('Error updating user:', error);
@@ -405,7 +384,20 @@ function App() {
     user.role === 'Administrator' ||
     user.role === 'Administrator Utama';
 
-  const isForceMobile = isMobile;
+  const isForceMobile = viewMode === 'mobile' || isMobile;
+
+  // Render Mobile Mockup element for Showcase (Gambar HP di depan seperti di gambar referensi)
+  const mobileMockupElement = (
+    <MobileAppMockup
+      users={users.length > 0 ? users : DUMMY_USERS}
+      currentUser={user}
+      geofenceConfig={geofenceConfig}
+      onRecordAttendance={handleRecordAttendanceFromMobile}
+      unlockRequests={unlockRequests}
+      onRequestUnlock={handleRequestUnlock}
+      onClose={() => setShowPhoneMockup(false)}
+    />
+  );
 
   if (isForceMobile) {
     if (isAdmin) {
@@ -450,9 +442,15 @@ function App() {
         onLogout={handleLogout}
         activeTab={adminTab}
         onTabChange={setAdminTab}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        allUsers={users.length > 0 ? users : DUMMY_USERS}
+        onQuickSwitchUser={handleQuickSwitchUser}
+        mobileMockupElement={mobileMockupElement}
+        showPhoneMockup={showPhoneMockup}
+        onTogglePhoneMockup={() => setShowPhoneMockup(!showPhoneMockup)}
       >
         <AdminDashboard
-          currentUser={user}
           users={users}
           records={records}
           geofenceConfig={geofenceConfig}
@@ -471,55 +469,60 @@ function App() {
 
   return (
     <div className="relative min-h-screen bg-slate-100 flex flex-col">
-      {/* Top Bar Guru & Pegawai Khas AbsenKu (#0088cc) */}
+      {/* Top Bar Guru & Pegawai dengan View Switcher & Akun Tester */}
       <div className="bg-[#0088cc] text-white px-4 py-2.5 flex items-center justify-between text-xs shadow-md border-b border-[#0077b5] shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center font-bold text-white shadow-xs border border-white/20">
-            {user.role === 'GURU' ? 'GR' : 'PG'}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold tracking-wider uppercase text-white">PORTAL GURU & PEGAWAI</span>
-              <span className="bg-emerald-400 text-slate-900 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                ONLINE
-              </span>
-            </div>
-            <p className="text-[10px] text-white/80">TKK INVIOLATA RUTENG</p>
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="font-extrabold tracking-wider uppercase">PORTAL GURU & PEGAWAI</span>
+          <span className="bg-emerald-400 text-slate-900 text-[10px] font-bold px-1.5 py-0.5 rounded">
+            TKK INVIOLATA RUTENG
+          </span>
         </div>
-
         <div className="flex items-center gap-3">
-          {timeStr && (
-            <div className="hidden md:flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl text-[11px] font-mono border border-white/15">
-              <Clock className="w-3.5 h-3.5 text-amber-300" />
-              <span>{timeStr}</span>
-            </div>
-          )}
-
-          {/* User Pill & Logout */}
-          <div className="flex items-center gap-2 pl-2 border-l border-white/20">
-            <img
-              src={
-                user?.avatarUrl ||
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=10B981&color=fff&size=36`
-              }
-              alt="Avatar"
-              className="w-7 h-7 rounded-full border border-white object-cover shadow-2xs"
-            />
-            <div className="hidden sm:block leading-tight text-left">
-              <span className="font-bold text-xs block">{user?.name}</span>
-              <span className="text-[10px] text-white/70 block">
-                {user.role === 'GURU' ? 'Tenaga Pendidik' : 'Pegawai Tata Usaha'}
-              </span>
-            </div>
+          <div className="hidden md:flex items-center bg-[#0072aa] p-0.5 rounded-lg border border-white/20 text-xs">
             <button
-              onClick={handleLogout}
-              className="p-1.5 rounded-xl bg-red-600/80 hover:bg-red-700 text-white transition ml-1 shadow-2xs"
-              title="Keluar / Logout"
+              onClick={() => setViewMode('showcase')}
+              className={`px-3 py-1 rounded-md font-bold transition ${
+                viewMode === 'showcase' ? 'bg-white text-[#0088cc] shadow-xs' : 'text-white/80 hover:text-white'
+              }`}
             >
-              <LogOut className="w-4 h-4" />
+              Showcase (Laptop + HP)
+            </button>
+            <button
+              onClick={() => setViewMode('desktop')}
+              className={`px-3 py-1 rounded-md font-bold transition ${
+                viewMode === 'desktop' ? 'bg-white text-[#0088cc] shadow-xs' : 'text-white/80 hover:text-white'
+              }`}
+            >
+              Laptop Saja
+            </button>
+            <button
+              onClick={() => setViewMode('mobile')}
+              className={`px-3 py-1 rounded-md font-bold transition ${
+                viewMode === 'mobile' ? 'bg-white text-[#0088cc] shadow-xs' : 'text-white/80 hover:text-white'
+              }`}
+            >
+              HP Saja
             </button>
           </div>
+          {users.length > 0 && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-[#0072aa] px-2 py-1 rounded-lg border border-white/20">
+              <span className="text-[10px] text-white/80 font-semibold">Simulasi Akun:</span>
+              <select
+                value={user.id}
+                onChange={(e) => {
+                  const f = users.find((u) => String(u.id) === e.target.value);
+                  if (f) handleQuickSwitchUser(f);
+                }}
+                className="bg-white text-slate-800 text-[11px] font-bold rounded px-1.5 py-0.5 border-none outline-none cursor-pointer"
+              >
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -532,6 +535,25 @@ function App() {
           geofenceConfig={geofenceConfig}
         />
       </div>
+
+      {/* Floating Interactive Phone Mockup for Staff in Showcase Mode */}
+      {viewMode === 'showcase' && showPhoneMockup && (
+        <aside className="fixed right-6 bottom-4 z-40">
+          <div className="bg-slate-900 text-white px-3 py-1.5 rounded-t-xl text-[11px] font-bold flex items-center justify-between border-t border-x border-slate-700 shadow-lg">
+            <span>📱 Simulasi HP Guru/Pegawai</span>
+            <button
+              onClick={() => setShowPhoneMockup(false)}
+              className="hover:text-red-400 p-0.5"
+              title="Tutup HP"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="bg-slate-950 p-2 rounded-b-[40px] shadow-2xl border-b border-x border-slate-700 max-h-[85vh] overflow-y-auto">
+            {mobileMockupElement}
+          </div>
+        </aside>
+      )}
     </div>
   );
 }
