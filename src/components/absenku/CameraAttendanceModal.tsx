@@ -26,12 +26,12 @@ export const CameraAttendanceModal: React.FC<CameraAttendanceModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setPhoto(null);
-      setError(null);
       startCamera();
       getLocation();
     } else {
       stopCamera();
+      setPhoto(null);
+      setError(null);
     }
     return () => stopCamera();
   }, [isOpen]);

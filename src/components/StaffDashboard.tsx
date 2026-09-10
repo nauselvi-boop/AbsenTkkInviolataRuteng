@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Camera,
   Clock,
@@ -59,13 +59,8 @@ interface StaffDashboardProps {
 function ChangeMapView({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
   useEffect(() => {
-    if (map) {
-      const center = map.getCenter();
-      if (Math.abs(center.lat - lat) > 0.0001 || Math.abs(center.lng - lng) > 0.0001) {
-        map.setView([lat, lng], map.getZoom());
-      }
-    }
-  }, [lat, lng]);
+    map.setView([lat, lng], map.getZoom());
+  }, [lat, lng, map]);
   return null;
 }
 
@@ -85,37 +80,17 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     checkOutDeadlineTime: '15:30',
   },
 }) => {
-  const today = new Date().toISOString().split('T')[0];
-
-  // ===== RECORD HARI INI SECARA MURNI (Mencegah loop re-render) =====
-  const todayRecord = useMemo(() => {
-    return (
-      records.find(
-        (r) => String(r.userId) === String(user?.id) && r.date === today
-      ) || null
-    );
-  }, [records, user?.id, today]);
-
-  const hasCheckedIn = Boolean(todayRecord?.checkInTime);
-  const hasCheckedOut = Boolean(todayRecord?.checkOutTime);
-
   // ===== STATE UTAMA =====
   const [selectedType, setSelectedType] = useState<'masuk' | 'pulang'>('masuk');
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [previewPhotoModal, setPreviewPhotoModal] = useState<string | null>(null);
+  const [todayRecord, setTodayRecord] = useState<any>(null);
+  const [hasCheckedIn, setHasCheckedIn] = useState(false);
+  const [hasCheckedOut, setHasCheckedOut] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' | '' }>({
     text: '',
     type: '',
   });
-
-  // Sinkronkan toggle masuk/pulang saat status absen berubah (hanya bergantung pada boolean)
-  useEffect(() => {
-    if (hasCheckedIn && !hasCheckedOut) {
-      setSelectedType('pulang');
-    } else if (!hasCheckedIn) {
-      setSelectedType('masuk');
-    }
-  }, [hasCheckedIn, hasCheckedOut]);
 
   // Navigation & Modals
   const [currentPage, setCurrentPage] = useState<MenuPage>('dashboard');
@@ -162,6 +137,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   const [myIzinList, setMyIzinList] = useState<any[]>([]);
 
   // Waktu
+  const today = new Date().toISOString().split('T')[0];
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -287,6 +263,28 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     return () => clearInterval(interval);
   }, [user?.id, today]);
 
+  // ===== CEK REKORD HARI INI =====
+  useEffect(() => {
+    const found = records.find(
+      (r) => r.userId === user.id?.toString() && r.date === today
+    );
+    setTodayRecord(found || null);
+    if (found) {
+      const inDone = Boolean(found.checkInTime);
+      const outDone = Boolean(found.checkOutTime);
+      setHasCheckedIn(inDone);
+      setHasCheckedOut(outDone);
+      // Jika sudah absen masuk dan belum absen pulang, arahkan default toggle ke absen pulang
+      if (inDone && !outDone) {
+        setSelectedType('pulang');
+      }
+    } else {
+      setHasCheckedIn(false);
+      setHasCheckedOut(false);
+      setSelectedType('masuk');
+    }
+  }, [records, user?.id, today]);
+
   // ===== SUBMIT PRESENSI DARI KAMERA MODAL =====
   const handleCaptureAttendance = async (photoBase64: string, coords: { lat: number; lng: number }) => {
     const dateStr = today;
@@ -323,7 +321,10 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         type: 'success',
       });
       if (selectedType === 'masuk') {
+        setHasCheckedIn(true);
         setSelectedType('pulang');
+      } else {
+        setHasCheckedOut(true);
       }
       await onRefresh();
       await fetchStaffData();

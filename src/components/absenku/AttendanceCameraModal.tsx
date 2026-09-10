@@ -42,12 +42,12 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       stopCamera();
+      setCapturedPhoto(null);
+      setCameraError(null);
+      setIsSubmitting(false);
       return;
     }
 
-    setCapturedPhoto(null);
-    setCameraError(null);
-    setIsSubmitting(false);
     startCamera(facingMode);
 
     return () => {

@@ -68,7 +68,7 @@ export const AdminProfileEditor: React.FC<AdminProfileEditorProps> = ({
   // File input ref untuk upload avatar
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sinkronisasi jika akun admin yang diedit berganti
+  // Sinkronisasi jika data admin berubah
   useEffect(() => {
     if (adminUser) {
       setName(adminUser.name || '');
@@ -80,7 +80,15 @@ export const AdminProfileEditor: React.FC<AdminProfileEditorProps> = ({
         setAvatarUrl(adminUser.avatarUrl);
       }
     }
-  }, [adminUser?.id]);
+  }, [
+    adminUser?.id,
+    adminUser?.name,
+    adminUser?.nip,
+    adminUser?.email,
+    adminUser?.phone,
+    adminUser?.position,
+    adminUser?.avatarUrl,
+  ]);
 
   // Handler Upload Foto dari Perangkat (Laptop/HP)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
