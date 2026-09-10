@@ -118,7 +118,7 @@ function App() {
       await fetchRecords();
     };
     fetchData();
-  }, [user?.id]);
+  }, [user]);
 
   const fetchUsers = async () => {
     try {

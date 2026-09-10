@@ -56,11 +56,11 @@ interface StaffDashboardProps {
 }
 
 // Map center controller helper
-function ChangeMapView({ lat, lng }: { lat: number; lng: number }) {
+function ChangeMapView({ coords }: { coords: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView([lat, lng], map.getZoom());
-  }, [lat, lng, map]);
+    map.setView(coords, map.getZoom());
+  }, [coords, map]);
   return null;
 }
 
@@ -283,7 +283,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       setHasCheckedOut(false);
       setSelectedType('masuk');
     }
-  }, [records, user?.id, today]);
+  }, [records, user, today]);
 
   // ===== SUBMIT PRESENSI DARI KAMERA MODAL =====
   const handleCaptureAttendance = async (photoBase64: string, coords: { lat: number; lng: number }) => {
@@ -793,7 +793,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
               style={{ height: '100%', width: '100%', borderRadius: '1.25rem' }}
               zoomControl={false}
             >
-              <ChangeMapView lat={schoolLat} lng={schoolLng} />
+              <ChangeMapView coords={[schoolLat, schoolLng]} />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User as UserType } from '../../types';
 import {
   User,
@@ -40,6 +40,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
 
   // State untuk pencarian cepat
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [filteredUsers, setFilteredUsers] = useState<UserType[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
 
   // Filter user berdasarkan query
@@ -61,19 +62,22 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   };
 
   // Daftar guru & pegawai resmi (hanya GURU dan PEGAWAI)
-  const staffUsers = useMemo(() => users.filter((u) => !isAdministrator(u)), [users]);
+  const staffUsers = users.filter((u) => !isAdministrator(u));
 
-  // Hitung hasil filter pencarian secara murni (mencegah infinite re-render loop)
-  const filteredUsers = useMemo(() => {
-    if (!searchQuery.trim()) return [];
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredUsers([]);
+      return;
+    }
     const query = searchQuery.toLowerCase().trim();
-    return staffUsers.filter(
+    const filtered = staffUsers.filter(
       (u) =>
         u.name.toLowerCase().includes(query) ||
         u.email.toLowerCase().includes(query) ||
         (u.nip && u.nip.toLowerCase().includes(query)) ||
         (u.role && u.role.toLowerCase().includes(query))
     );
+    setFilteredUsers(filtered);
   }, [searchQuery, staffUsers]);
 
   // Fungsi saat guru/pegawai dipilih dari daftar
@@ -82,6 +86,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
     setPassword((user as any).password || (user.role === 'PEGAWAI' ? 'pegawai123' : 'guru123'));
     setErrorMessage('');
     setSearchQuery('');
+    setFilteredUsers([]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {

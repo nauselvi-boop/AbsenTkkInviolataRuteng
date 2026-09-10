@@ -80,15 +80,7 @@ export const AdminProfileEditor: React.FC<AdminProfileEditorProps> = ({
         setAvatarUrl(adminUser.avatarUrl);
       }
     }
-  }, [
-    adminUser?.id,
-    adminUser?.name,
-    adminUser?.nip,
-    adminUser?.email,
-    adminUser?.phone,
-    adminUser?.position,
-    adminUser?.avatarUrl,
-  ]);
+  }, [adminUser]);
 
   // Handler Upload Foto dari Perangkat (Laptop/HP)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
