@@ -78,21 +78,11 @@ function App() {
   ]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const mediaQuery = window.matchMedia('(max-width: 768px)');
-      setIsMobile(mediaQuery.matches);
-      const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
-      if (typeof mediaQuery.addEventListener === 'function') {
-        mediaQuery.addEventListener('change', handler);
-        return () => mediaQuery.removeEventListener('change', handler);
-      } else if (typeof (mediaQuery as any).addListener === 'function') {
-        (mediaQuery as any).addListener(handler);
-        return () => (mediaQuery as any).removeListener(handler);
-      }
-    } catch (err) {
-      console.warn('Media query init error:', err);
-    }
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    setIsMobile(mediaQuery.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
   }, []);
 
   useEffect(() => {
@@ -440,7 +430,7 @@ function App() {
       );
     } else {
       return (
-        <div className="relative min-h-screen bg-slate-100 flex flex-col">
+        <div className="relative min-h-screen bg-slate-900">
           <MobileStaffDashboard
             user={user}
             records={records}

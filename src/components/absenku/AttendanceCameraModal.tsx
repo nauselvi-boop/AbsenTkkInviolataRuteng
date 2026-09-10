@@ -36,8 +36,7 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mulai streaming kamera saat modal dibuka
   useEffect(() => {
@@ -58,11 +57,7 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
 
   const stopCamera = () => {
     if (stream) {
-      try {
-        stream.getTracks().forEach((track) => track.stop());
-      } catch (e) {
-        console.warn('Error stopping stream tracks:', e);
-      }
+      stream.getTracks().forEach((track) => track.stop());
       setStream(null);
     }
   };
@@ -74,17 +69,12 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
 
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        // Fallback check legacy
-        const n = navigator as any;
-        const legacyGet = n.getUserMedia || n.webkitGetUserMedia || n.mozGetUserMedia;
-        if (!legacyGet) {
-          throw new Error('Browser tidak mendukung akses kamera langsung. Silakan gunakan tombol "Kamera HP" atau "Galeri" di bawah.');
-        }
+        throw new Error('Browser tidak mendukung akses kamera langsung.');
       }
 
       const constraints: MediaStreamConstraints = {
         video: {
-          facingMode: { ideal: mode },
+          facingMode: mode,
           width: { ideal: 640 },
           height: { ideal: 480 },
         },
@@ -95,36 +85,27 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (err: any) {
+        // Fallback untuk desktop yang tidak mengenali facingMode 'user'
         console.warn('Fallback ke generic video constraint...', err);
-        try {
-          mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode } });
-        } catch (err2) {
-          mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        }
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       }
 
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        const markReady = () => {
-          videoRef.current?.play().catch((err) => {
-            console.warn('Video auto-play prevented:', err);
-          });
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(console.error);
           setIsReady(true);
         };
-        videoRef.current.onloadedmetadata = markReady;
-        videoRef.current.oncanplay = markReady;
-        // Fallback timer jika browser lambat trigger metadata
-        setTimeout(markReady, 600);
       }
     } catch (err: any) {
       console.warn('Gagal membuka kamera:', err);
       setCameraError(
         err.name === 'NotAllowedError' || err.message?.includes('Permission')
-          ? 'Izin kamera ditolak oleh peramban browser HP. Anda dapat menggunakan tombol "Kamera HP" atau "Galeri" di bawah.'
+          ? 'Izin kamera ditolak oleh peramban browser. Anda dapat menggunakan tombol "Pilih Foto / Selfie" di bawah.'
           : err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError'
-          ? 'Perangkat webcam tidak terdeteksi langsung. Anda dapat mengambil foto langsung dengan tombol "Kamera HP".'
-          : 'Kamera tidak dapat diakses langsung (' + (err.message || 'Izin peramban') + '). Silakan gunakan tombol "Kamera HP" di bawah.'
+          ? 'Perangkat webcam tidak terdeteksi pada komputer/laptop ini. Anda dapat mengunggah foto selfie langsung.'
+          : 'Kamera tidak dapat diakses (' + (err.message || 'Izin peramban') + '). Silakan pilih foto manual di bawah.'
       );
     }
   };
@@ -140,26 +121,8 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
     canvas.width = width;
     canvas.height = height;
 
-    try {
-      if (source instanceof HTMLVideoElement) {
-        if (facingMode === 'user') {
-          // Mirror live selfie naturally on canvas
-          ctx.save();
-          ctx.translate(width, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(source, 0, 0, width, height);
-          ctx.restore();
-        } else {
-          ctx.drawImage(source, 0, 0, width, height);
-        }
-      } else {
-        ctx.drawImage(source, 0, 0, width, height);
-      }
-    } catch (e) {
-      console.warn('Canvas draw exception:', e);
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, width, height);
-    }
+    // Gambar sumber foto
+    ctx.drawImage(source, 0, 0, width, height);
 
     // Overlay gelap di bagian bawah untuk watermark
     const gradient = ctx.createLinearGradient(0, height - 110, 0, height);
@@ -348,27 +311,17 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
                 <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
                   <AlertCircle className="w-6 h-6" />
                 </div>
-                <h4 className="font-bold text-white text-sm sm:text-base">Akses Kamera Browser Dibatasi</h4>
+                <h4 className="font-bold text-white text-sm sm:text-base">Kamera Tidak Terbuka Otomatis</h4>
                 <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">{cameraError}</p>
                 <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
                   <button
-                    type="button"
-                    onClick={() => nativeCameraInputRef.current?.click()}
+                    onClick={() => fileInputRef.current?.click()}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow flex items-center justify-center gap-1.5 transition"
                   >
-                    <Camera className="w-3.5 h-3.5" />
-                    Kamera HP (Native)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => galleryInputRef.current?.click()}
-                    className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow flex items-center justify-center gap-1.5 transition"
-                  >
                     <Upload className="w-3.5 h-3.5" />
-                    Pilih dari Galeri
+                    Ambil Foto / Upload
                   </button>
                   <button
-                    type="button"
                     onClick={handleUseAvatar}
                     className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5"
                   >
@@ -385,7 +338,7 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
                   autoPlay
                   playsInline
                   muted
-                  className={`w-full h-full object-cover ${facingMode === 'user' ? 'transform -scale-x-100' : ''}`}
+                  className="w-full h-full object-cover transform -scale-x-100"
                 />
 
                 {/* Face Oval Guide */}
@@ -405,10 +358,9 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
 
                 {/* Flip camera button for mobile phones */}
                 <button
-                  type="button"
                   onClick={() => setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'))}
                   className="absolute top-3 right-3 bg-slate-900/80 hover:bg-slate-800 text-white p-2 rounded-xl backdrop-blur-xs border border-white/10 text-xs transition"
-                  title="Putar Kamera Depan / Belakang"
+                  title="Putar Kamera"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
@@ -425,20 +377,13 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
             )}
           </div>
 
-          {/* Hidden Canvas & Dual Inputs (Kamera HP Langsung & File Galeri) */}
+          {/* Hidden Canvas & File Input */}
           <canvas ref={canvasRef} className="hidden" />
           <input
-            ref={nativeCameraInputRef}
+            ref={fileInputRef}
             type="file"
             accept="image/*"
             capture="user"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <input
-            ref={galleryInputRef}
-            type="file"
-            accept="image/*"
             onChange={handleFileUpload}
             className="hidden"
           />
@@ -504,35 +449,26 @@ export const AttendanceCameraModal: React.FC<AttendanceCameraModalProps> = ({
               </button>
             </>
           ) : (
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
+            <>
               <button
                 type="button"
-                onClick={() => nativeCameraInputRef.current?.click()}
-                className="px-3 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:text-slate-900 text-xs font-bold hover:bg-slate-100 transition flex items-center gap-1.5 shrink-0"
-                title="Gunakan Kamera HP langsung"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 transition flex items-center gap-1.5"
+                title="Pilih foto dari penyimpanan atau kamera native HP"
               >
-                <Camera className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Kamera HP</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => galleryInputRef.current?.click()}
-                className="px-3 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:text-slate-900 text-xs font-semibold hover:bg-slate-100 transition flex items-center gap-1.5 shrink-0"
-                title="Pilih foto dari Galeri"
-              >
-                <Upload className="w-3.5 h-3.5 text-sky-600" />
-                <span>Galeri</span>
+                <Upload className="w-3.5 h-3.5" />
+                Pilih File / Galeri
               </button>
               <button
                 type="button"
                 onClick={takeSnapshot}
                 disabled={!isReady && !cameraError}
-                className="flex-1 bg-[#1e293b] hover:bg-[#0f172a] text-white text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 disabled:opacity-50 min-w-[140px]"
+                className="flex-1 bg-[#1e293b] hover:bg-[#0f172a] text-white text-xs sm:text-sm font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <Camera className="w-4 h-4" />
-                <span>Ambil Foto</span>
+                Ambil Foto Sekarang
               </button>
-            </div>
+            </>
           )}
         </div>
       </div>

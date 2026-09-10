@@ -52,7 +52,6 @@ export const MobileAbsenKuHome: React.FC<MobileAbsenKuHomeProps> = ({
   const [isIzinOpen, setIsIzinOpen] = useState(false);
 
   const menuItems = [
-    { icon: <School className="w-5 h-5" />, label: 'Beranda / Monitoring', tabId: 'monitoring' },
     { icon: <FileSpreadsheet className="w-5 h-5" />, label: 'Rekap Absensi Excel', tabId: 'laporan' },
     { icon: <Users className="w-5 h-5" />, label: 'Data Guru & Pegawai', tabId: 'pengguna' },
     { icon: <MapPin className="w-5 h-5" />, label: 'Lokasi GPS & Jam Sekolah', tabId: 'geofence' },
@@ -61,7 +60,7 @@ export const MobileAbsenKuHome: React.FC<MobileAbsenKuHomeProps> = ({
       label: 'Persetujuan Izin & Kunci',
       isDropdown: true,
       subItems: [
-        { label: 'Izin Terlambat', tabId: 'aktivasi_absen' },
+        { label: 'Izin Terlambat', tabId: 'izin_terlambat' },
         { label: 'Izin Tidak Masuk', tabId: 'izin_tidak_masuk' },
       ],
     },
@@ -191,7 +190,6 @@ export const MobileAbsenKuHome: React.FC<MobileAbsenKuHomeProps> = ({
       {/* KONTEN UTAMA (AdminDashboard) */}
       <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
         <AdminDashboard
-          currentUser={user}
           users={users}
           records={records}
           geofenceConfig={geofenceConfig}
