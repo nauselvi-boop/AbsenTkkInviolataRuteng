@@ -344,9 +344,9 @@ export const PengajuanIzinModal: React.FC<PengajuanIzinModalProps> = ({
                   </p>
                 </div>
               ) : (
-                myRequests.map((req) => (
+                myRequests.map((req, idx) => (
                   <div
-                    key={req.id}
+                    key={`my-izin-${req.id}-${idx}`}
                     className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">

@@ -165,26 +165,68 @@ function App() {
     }
   };
 
+  const formatTimeSafe = (timeVal: any): string | undefined => {
+    if (!timeVal) return undefined;
+    if (typeof timeVal === 'string') {
+      const match = timeVal.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      if (match) {
+        return `${match[1].padStart(2, '0')}:${match[2]}:${match[3] || '00'}`;
+      }
+      try {
+        const d = new Date(timeVal);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        }
+      } catch (e) {}
+    } else if (timeVal instanceof Date && !isNaN(timeVal.getTime())) {
+      return timeVal.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    }
+    return String(timeVal);
+  };
+
+  const formatDateSafe = (dateVal: any): string => {
+    if (!dateVal) return new Date().toLocaleDateString('en-CA');
+    if (typeof dateVal === 'string') {
+      return dateVal.includes('T') ? dateVal.split('T')[0] : dateVal.slice(0, 10);
+    }
+    if (dateVal instanceof Date) {
+      const y = dateVal.getFullYear();
+      const m = String(dateVal.getMonth() + 1).padStart(2, '0');
+      const d = String(dateVal.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return String(dateVal);
+  };
+
   const fetchRecords = async () => {
     if (!user) return;
     try {
       const res = await fetch('/api/attendance');
       const data = await res.json();
-      if (data.success) {
-        const formatted = data.data.map((item: any) => {
-          const foundUser = users.find(u => String(u.id) === String(item.user_id)) || null;
-          const userName = foundUser?.name || item.user_name || 'Unknown';
-          const userNip = foundUser?.nip || item.nip || '0000000000000';
-          const userRole = foundUser?.role || item.user_role || 'STAFF';
-          const avatar = foundUser?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=gray&color=fff&size=40`;
+      if (data.success && Array.isArray(data.data)) {
+        const seenIds = new Set<string>();
+        const uniqueItems = data.data.filter((item: any) => {
+          const idStr = String(item.id);
+          if (seenIds.has(idStr)) return false;
+          seenIds.add(idStr);
+          return true;
+        });
 
-          const checkInTimeStr = item.check_in_time
-            ? new Date(item.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-            : undefined;
+        const formatted = uniqueItems.map((item: any) => {
+          const foundUser = users.find(u => 
+            String(u.id) === String(item.user_id) || 
+            (u.nip && item.nip && u.nip.trim() !== '-' && u.nip.trim() === item.nip.trim()) ||
+            (u.name && item.user_name && u.name.toLowerCase().trim() === item.user_name.toLowerCase().trim())
+          ) || null;
 
-          const checkOutTimeStr = item.check_out_time
-            ? new Date(item.check_out_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-            : undefined;
+          const userName = foundUser?.name || item.user_name || 'Guru / Pegawai';
+          const userNip = foundUser?.nip || item.nip || '-';
+          const rawRole = (foundUser?.role || item.user_role || 'GURU').toUpperCase();
+          const userRole = rawRole.includes('ADMIN') ? 'ADMIN' : rawRole.includes('PEGAWAI') ? 'PEGAWAI' : 'GURU';
+          const avatar = foundUser?.avatarUrl || item.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0088cc&color=fff&size=40`;
+
+          const checkInTimeStr = formatTimeSafe(item.check_in_time);
+          const checkOutTimeStr = formatTimeSafe(item.check_out_time);
 
           let checkInStatus: 'TEPAT_WAKTU' | 'TERLAMBAT' | 'TERLAMBAT_DIIZINKAN' = 'TEPAT_WAKTU';
           if (item.status === 'terlambat' || item.status === 'TERLAMBAT') {
@@ -195,12 +237,10 @@ function App() {
             item.notes?.toLowerCase().includes('diaktifkan')
           ) {
             checkInStatus = 'TERLAMBAT_DIIZINKAN';
-          } else if (item.check_in_time) {
-            const d = new Date(item.check_in_time);
-            const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-            const [h, m] = timeStr.split(':').map(Number);
+          } else if (checkInTimeStr) {
+            const [h, m] = checkInTimeStr.split(':').map(Number);
             const [dh, dm] = (geofenceConfig?.checkInDeadlineTime || '07:15').split(':').map(Number);
-            if (h * 60 + m > dh * 60 + dm) {
+            if (!isNaN(h) && !isNaN(m) && !isNaN(dh) && !isNaN(dm) && h * 60 + m > dh * 60 + dm) {
               checkInStatus = 'TERLAMBAT';
             }
           }
@@ -211,11 +251,11 @@ function App() {
             userName: userName,
             userRole: userRole,
             nip: userNip,
-            date: (item.attendance_date || '').split('T')[0],
+            date: formatDateSafe(item.attendance_date),
             checkInTime: checkInTimeStr,
             checkInLocation: {
-              latitude: item.check_in_lat || 0,
-              longitude: item.check_in_lng || 0,
+              latitude: Number(item.check_in_lat) || 0,
+              longitude: Number(item.check_in_lng) || 0,
               distanceMeters: 0,
             },
             checkInStatus: checkInStatus,
@@ -224,8 +264,8 @@ function App() {
             checkOutPhoto: item.check_out_photo_path || null,
             checkOutLocation: item.check_out_lat
               ? {
-                  latitude: item.check_out_lat,
-                  longitude: item.check_out_lng,
+                  latitude: Number(item.check_out_lat),
+                  longitude: Number(item.check_out_lng),
                   distanceMeters: 0,
                 }
               : null,

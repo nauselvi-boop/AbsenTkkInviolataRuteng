@@ -232,8 +232,8 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredRecords.map((rec) => (
-                  <tr key={rec.id} className="hover:bg-slate-50/70 transition">
+                filteredRecords.map((rec, idx) => (
+                  <tr key={`report-rec-${rec.id || idx}-${rec.userId || ''}-${rec.date}-${idx}`} className="hover:bg-slate-50/70 transition">
                     {/* Tanggal */}
                     <td className="py-3 px-4 whitespace-nowrap">
                       <p className="font-bold text-slate-900">{rec.date}</p>

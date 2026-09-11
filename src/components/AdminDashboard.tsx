@@ -92,10 +92,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onTabChange,
   onRefresh,
 }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayRecords = records.filter((r) => r.date === todayStr);
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const todayRecords = records.filter((r) => {
+    if (!r.date) return false;
+    const rDate = r.date.includes('T') ? r.date.split('T')[0] : r.date.slice(0, 10);
+    return rDate === todayStr;
+  });
 
-  const staffUsers = users.filter((u) => u.role !== 'ADMIN');
+  const staffUsers = users.filter((u) => (u.role || '').toUpperCase() !== 'ADMIN');
   const totalStaffCount = staffUsers.length;
   const presentCount = todayRecords.length;
   const lateCount = todayRecords.filter((r) => r.checkInStatus === 'TERLAMBAT').length;
@@ -706,13 +710,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredList.map((req) => {
+                  {filteredList.map((req, idx) => {
                     const isUnlocked = unlockedUserIds.includes(String(req.user_id));
                     const staffData = staffUsers.find((u) => u.id.toString() === req.user_id.toString());
                     const roleLabel = staffData?.role === 'STAFF' ? 'Pegawai' : 'Guru';
 
                     return (
-                      <tr key={req.id} className="hover:bg-slate-50/80 transition-colors">
+                      <tr key={`unlock-req-${req.id}-${req.user_id}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                         {/* Nama Lengkap & NIP */}
                         <td className="p-4">
                           <div className="flex items-center gap-3">
@@ -821,11 +825,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {staffBelumAbsen.slice(0, 6).map((staff) => {
+            {staffBelumAbsen.slice(0, 6).map((staff, idx) => {
               const isUnlocked = unlockedUserIds.includes(String(staff.id));
               return (
                 <div
-                  key={staff.id}
+                  key={`unabsen-staff-${staff.id}-${idx}`}
                   className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between gap-2"
                 >
                   <div className="min-w-0">
@@ -901,8 +905,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((req) => (
-                  <tr key={req.id} className="hover:bg-slate-50/80 transition">
+                {filtered.map((req, idx) => (
+                  <tr key={`izin-req-${req.id}-${req.user_id}-${idx}`} className="hover:bg-slate-50/80 transition">
                     <td className="p-3.5 font-bold text-slate-900">{req.user_name}</td>
                     <td className="p-3.5 text-xs font-mono text-slate-600">{req.user_nip || '-'}</td>
                     <td className="p-3.5 text-xs text-slate-700 whitespace-nowrap">{req.date}</td>
@@ -1024,8 +1028,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {announcements.length === 0 ? (
           <p className="text-slate-400">Belum ada pengumuman.</p>
         ) : (
-          announcements.map((ann) => (
-            <div key={ann.id} className={`border rounded-xl p-4 ${ann.isPinned ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'}`}>
+          announcements.map((ann, idx) => (
+            <div key={`announcement-${ann.id}-${idx}`} className={`border rounded-xl p-4 ${ann.isPinned ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'}`}>
               <div className="flex items-start justify-between">
                 <div>
                   <h4 className="font-bold text-slate-800 flex items-center gap-2">

@@ -15,7 +15,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 let inMemoryAttendance = [
   {
-    id: 1,
+    id: 101,
     user_id: 1,
     user_name: 'Sr. Maria Inviolata, S.Pd.',
     nip: '198804152014022003',
@@ -30,7 +30,7 @@ let inMemoryAttendance = [
     notes: 'Presensi GPS Mobile',
   },
   {
-    id: 2,
+    id: 102,
     user_id: 2,
     user_name: 'Yohana D. Jelita, S.Pd.',
     nip: '197910202008012015',
@@ -88,12 +88,13 @@ export default async function handler(req, res) {
               a.check_out_time,
               a.check_out_lat,
               a.check_out_lng,
+              a.check_out_photo_path,
               a.status,
               a.notes,
               a.location,
-              u.full_name AS user_name,
-              u.nip,
-              r.name AS user_role
+              COALESCE(u.full_name, 'Guru / Pegawai') AS user_name,
+              COALESCE(u.nip, '-') AS nip,
+              COALESCE(r.name, 'Guru') AS user_role
             FROM attendance a
             LEFT JOIN users u ON a.user_id = u.id
             LEFT JOIN roles r ON u.role_id = r.id
@@ -155,53 +156,82 @@ export default async function handler(req, res) {
       }
 
       // 2. Normal Presensi (Check-in / Check-out)
-      const { user_id, date, status, location, notes, photo, lat, lng } = req.body;
+      const { user_id, date, status, location, notes, photo, lat, lng, type } = req.body;
       if (!user_id || !date) {
         return res.status(400).json({ success: false, error: 'user_id dan date wajib diisi' });
       }
 
       const formattedDate = date.includes('T') ? date.split('T')[0] : date;
       const numUserId = parseInt(user_id);
-      const currentTimeStr = new Date().toLocaleTimeString('id-ID', { hour12: false });
+      const nowIso = new Date().toISOString();
 
-      // Cek apakah sudah ada record hari ini
-      const existingMemIdx = inMemoryAttendance.findIndex(
-        (a) => a.user_id === numUserId && a.attendance_date === formattedDate
+      // Cek apakah sudah ada record hari ini di DB atau memory
+      let existingRecord = null;
+      const memIdx = inMemoryAttendance.findIndex(
+        (a) => a.user_id === numUserId && String(a.attendance_date).split('T')[0] === formattedDate
       );
+      if (memIdx !== -1) {
+        existingRecord = inMemoryAttendance[memIdx];
+      }
 
-      if (existingMemIdx === -1) {
+      if (!existingRecord && sql) {
+        try {
+          const dbCheck = await sql`
+            SELECT * FROM attendance 
+            WHERE user_id = ${numUserId} AND attendance_date = ${formattedDate}
+            LIMIT 1
+          `;
+          if (dbCheck && dbCheck.length > 0) {
+            existingRecord = dbCheck[0];
+            const alreadyExists = inMemoryAttendance.some((a) => String(a.id) === String(existingRecord.id));
+            if (!alreadyExists) {
+              inMemoryAttendance.unshift(existingRecord);
+            }
+          }
+        } catch (dbErr) {
+          console.warn('[Attendance check existing] DB error:', dbErr.message);
+        }
+      }
+
+      if (!existingRecord) {
         // CHECK-IN BARU
         const newRecord = {
           id: Date.now(),
           user_id: numUserId,
           attendance_date: formattedDate,
-          check_in_time: currentTimeStr,
+          check_in_time: nowIso,
           check_in_lat: lat || -8.6165151,
           check_in_lng: lng || 120.4608927,
           check_in_photo_path: photo || null,
           check_out_time: null,
-          status: status || 'tepat_waktu',
+          status: status || 'hadir',
           location: location || 'TKK Inviolata Ruteng (Area Sekolah)',
           notes: notes || 'Presensi Masuk',
         };
-        inMemoryAttendance.unshift(newRecord);
 
         if (sql) {
           try {
-            await sql`
+            const insertRes = await sql`
               INSERT INTO attendance (
                 user_id, attendance_date, check_in_time, status, location, notes,
                 check_in_lat, check_in_lng, check_in_photo_path, created_at, updated_at
               ) VALUES (
-                ${numUserId}, ${formattedDate}, ${currentTimeStr}, ${status || 'tepat_waktu'},
+                ${numUserId}, ${formattedDate}, ${nowIso}, ${status || 'hadir'},
                 ${location || null}, ${notes || null}, ${lat || null}, ${lng || null},
-                ${photo ? photo.slice(0, 300000) : null}, NOW(), NOW()
+                ${photo || null}, NOW(), NOW()
               )
+              RETURNING id
             `;
+            if (insertRes && insertRes.length > 0) {
+              newRecord.id = insertRes[0].id;
+            }
           } catch (dbErr) {
             console.warn('[Attendance Check-in] DB error:', dbErr.message);
           }
         }
+
+        inMemoryAttendance = inMemoryAttendance.filter((a) => String(a.id) !== String(newRecord.id));
+        inMemoryAttendance.unshift(newRecord);
 
         return res.status(200).json({
           success: true,
@@ -211,29 +241,29 @@ export default async function handler(req, res) {
         });
       } else {
         // CHECK-OUT
-        const record = inMemoryAttendance[existingMemIdx];
-        if (record.check_out_time !== null) {
+        if (existingRecord.check_out_time !== null && existingRecord.check_out_time !== undefined) {
           return res.status(400).json({
             success: false,
             error: 'Anda sudah melakukan presensi pulang hari ini.',
           });
         }
 
-        record.check_out_time = currentTimeStr;
-        record.check_out_lat = lat || -8.6165151;
-        record.check_out_lng = lng || 120.4608927;
-        if (photo) record.check_out_photo_path = photo;
+        existingRecord.check_out_time = nowIso;
+        existingRecord.check_out_lat = lat || -8.6165151;
+        existingRecord.check_out_lng = lng || 120.4608927;
+        if (photo) existingRecord.check_out_photo_path = photo;
 
         if (sql) {
           try {
             await sql`
               UPDATE attendance
               SET 
-                check_out_time = ${currentTimeStr},
+                check_out_time = ${nowIso},
                 check_out_lat = ${lat || null},
                 check_out_lng = ${lng || null},
+                check_out_photo_path = ${photo || null},
                 updated_at = NOW()
-              WHERE id = ${record.id} OR (user_id = ${numUserId} AND attendance_date = ${formattedDate})
+              WHERE (id = ${existingRecord.id} OR (user_id = ${numUserId} AND attendance_date = ${formattedDate}))
             `;
           } catch (dbErr) {
             console.warn('[Attendance Check-out] DB error:', dbErr.message);
@@ -243,7 +273,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           success: true,
           message: 'Presensi Pulang berhasil dicatat.',
-          data: record,
+          data: existingRecord,
           type: 'check-out',
         });
       }

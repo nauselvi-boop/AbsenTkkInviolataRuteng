@@ -642,10 +642,10 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {userRecords.map((rec) => {
+                    {userRecords.map((rec, index) => {
                       const isLate = (rec.status || '').toLowerCase() === 'terlambat' || (rec.checkInStatus || '').toUpperCase() === 'TERLAMBAT';
                       return (
-                        <tr key={rec.id} className="hover:bg-slate-50/60 transition">
+                        <tr key={`staff-rec-${rec.id || index}-${rec.date}-${index}`} className="hover:bg-slate-50/60 transition">
                           <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
                             {rec.date}
                           </td>

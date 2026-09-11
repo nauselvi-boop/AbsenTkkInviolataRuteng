@@ -246,9 +246,9 @@ export const PermohonanBukaKunciModal: React.FC<PermohonanBukaKunciModalProps> =
               </div>
             ) : (
               <div className="space-y-3">
-                {requests.map((req) => (
+                {requests.map((req, idx) => (
                   <div
-                    key={req.id}
+                    key={`unlock-item-${req.id}-${idx}`}
                     className={`rounded-xl border p-3.5 transition ${
                       req.status === 'MENUNGGU'
                         ? 'bg-amber-50/60 border-amber-200'

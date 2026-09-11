@@ -57,60 +57,192 @@ let inMemoryUsers: any[] = [
   {
     id: 1,
     nip: '198804152014022003',
-    name: 'Sr. Maria Inviolata, S.Pd.',
+    name: 'Sr. Angela Merici Bedhu, SSpS',
     email: 'admin@tkkinviolata.sch.id',
     role: 'ADMIN',
     phone: '081238889901',
     password: 'admin123',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Sr.+Maria&background=8B5CF6&color=fff&size=40',
-    is_active: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    nip: '198805162015032004',
-    name: 'Ibu Yuliana Nardi, S.Pd.',
-    email: 'guru@tkkinviolata.sch.id',
-    role: 'GURU',
-    phone: '081234567890',
-    password: 'guru123',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Ibu+Yuliana&background=10B981&color=fff&size=40',
-    is_active: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 3,
-    nip: '198807172016042005',
-    name: 'Bpk. Yohanes Berchmans, S.Kom.',
-    email: 'pegawai@tkkinviolata.sch.id',
-    role: 'PEGAWAI',
-    phone: '081298765432',
-    password: 'pegawai123',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Bpk.+Yohanes&background=3B82F6&color=fff&size=40',
-    is_active: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 4,
-    nip: '199209202019032005',
-    name: 'Ibu Fransiska Murni, S.Pd. AUD',
-    email: 'fransiska.murni@tkkinviolata.sch.id',
-    role: 'GURU',
-    phone: '0812-3944-5566',
-    password: 'guru123',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Ibu+Fransiska&background=EC4899&color=fff&size=40',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Sr.+Angela&background=8B5CF6&color=fff&size=40',
     is_active: true,
     created_at: new Date().toISOString(),
   },
   {
     id: 5,
-    nip: '198512142010011002',
-    name: 'Bpk. Fransiskus Deno',
-    email: 'frans.sarpras@tkkinviolata.sch.id',
+    nip: '123456789101112',
+    name: 'Angela Merici Bedhu',
+    email: 'angelabedhu@gmail.com',
+    role: 'GURU',
+    phone: '081234567890',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Angela+Bedhu&background=10B981&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 6,
+    nip: '98776123712754126',
+    name: 'Sr.Meriana Kaka, SSpS',
+    email: 'merianakaka@gmail.com',
+    role: 'PEGAWAI',
+    phone: '081298765432',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Sr.+Meriana&background=3B82F6&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 7,
+    nip: '098763713725472154',
+    name: 'Arlan Doko Bengu',
+    email: 'arlanbengu2@gmail.com',
     role: 'PEGAWAI',
     phone: '0813-3977-8899',
-    password: 'pegawai123',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Bpk.+Fransiskus&background=F59E0B&color=fff&size=40',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Arlan+Bengu&background=F59E0B&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 8,
+    nip: '199205102014022002',
+    name: 'Bonevora Veni',
+    email: 'venibonevora@gmail.com',
+    role: 'GURU',
+    phone: '0812-3944-5566',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Bonevora+Veni&background=EC4899&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 9,
+    nip: '199508202017031003',
+    name: 'Emirensiana Meo',
+    email: 'meoemi015@gmail.com',
+    role: 'GURU',
+    phone: '081234998877',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Emirensiana+Meo&background=14B8A6&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 10,
+    nip: 'NIP-923227288',
+    name: 'Eufrasia Indra Arsanti Ganis',
+    email: 'eufrasiaganis54@guru.paud.belajar.id',
+    role: 'GURU',
+    phone: '081234112233',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Eufrasia+Ganis&background=6366F1&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 11,
+    nip: 'NIP-651596331',
+    name: 'Maria Florentina Ngare',
+    email: 'mariaflorentinangare@gmail.com',
+    role: 'GURU',
+    phone: '081234556677',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Maria+Ngare&background=84CC16&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 12,
+    nip: 'NIP-230394093',
+    name: 'Maria Godeliva Djenadut',
+    email: 'mariadjenadut@gmail.com',
+    role: 'GURU',
+    phone: '081234778899',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Maria+Djenadut&background=06B6D4&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 13,
+    nip: 'NIP-572931822',
+    name: 'Maria Sulastri Janggu',
+    email: 'janggusastri@gmail.com',
+    role: 'GURU',
+    phone: '081234223344',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Maria+Janggu&background=E11D48&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 14,
+    nip: 'NIP-398085278',
+    name: 'Marianus Herminus',
+    email: 'herminus1990@gmail.com',
+    role: 'GURU',
+    phone: '081234667788',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Marianus+Herminus&background=D97706&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 15,
+    nip: 'NIP-759835721',
+    name: 'Melania Marsela Kongen',
+    email: 'marselakongen08@gmail.com',
+    role: 'GURU',
+    phone: '081234889900',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Melania+Kongen&background=9333EA&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 16,
+    nip: 'NIP-357473287',
+    name: 'Regina Helenora Ratna',
+    email: 'reginaratna14@gmail.com',
+    role: 'GURU',
+    phone: '081234001122',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Regina+Ratna&background=2563EB&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 17,
+    nip: 'NIP-162398659',
+    name: 'Theresia Tajo',
+    email: 'theresiatajo@gmail.com',
+    role: 'GURU',
+    phone: '081234334455',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Theresia+Tajo&background=059669&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 18,
+    nip: 'NIP-334371892',
+    name: 'Yovita Reneldis Maja',
+    email: 'majayovitareneldis@gmail.com',
+    role: 'GURU',
+    phone: '081234445566',
+    password: 'password123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Yovita+Maja&background=EA580C&color=fff&size=40',
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 999,
+    nip: '198804152014022003',
+    name: 'Admin Utama (Kepala Sekolah)',
+    email: 'admin@inviolata.sch.id',
+    role: 'ADMIN',
+    phone: '081238889901',
+    password: 'admin123',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Admin+Utama&background=0088cc&color=fff&size=40',
     is_active: true,
     created_at: new Date().toISOString(),
   },
@@ -120,7 +252,7 @@ const todayDateStr = new Date().toISOString().split('T')[0];
 
 let inMemoryAttendance: any[] = [
   {
-    id: 1,
+    id: 101,
     user_id: 2,
     attendance_date: todayDateStr,
     check_in_time: `${todayDateStr}T06:45:00.000Z`,
@@ -141,7 +273,7 @@ let inMemoryAttendance: any[] = [
     user_role: 'GURU',
   },
   {
-    id: 2,
+    id: 102,
     user_id: 3,
     attendance_date: todayDateStr,
     check_in_time: `${todayDateStr}T06:50:00.000Z`,
@@ -655,25 +787,65 @@ app.get('/api/attendance', async (req, res) => {
             a.verified_by,
             a.created_at,
             a.updated_at,
-            u.full_name AS user_name,
-            u.nip,
-            r.name AS user_role
+            COALESCE(u.full_name, 'Guru / Pegawai') AS user_name,
+            COALESCE(u.nip, '-') AS nip,
+            COALESCE(r.name, 'Guru') AS user_role,
+            u.profile_photo AS user_avatar
           FROM attendance a
           LEFT JOIN users u ON a.user_id = u.id
           LEFT JOIN roles r ON u.role_id = r.id
           ORDER BY a.attendance_date DESC, a.check_in_time DESC
         `;
-        if (result && result.length > 0) {
-          return res.status(200).json({ success: true, data: result });
+        if (result && Array.isArray(result)) {
+          const toYmd = (d: any): string => {
+            if (!d) return '';
+            if (d instanceof Date) return d.toISOString().split('T')[0];
+            const str = String(d);
+            if (str.includes('T')) return str.split('T')[0];
+            const parsed = new Date(str);
+            if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+            return str.slice(0, 10);
+          };
+
+          const dbIds = new Set(result.map((r: any) => String(r.id)));
+          const dbKeys = new Set(result.map((r: any) => `${r.user_id}_${toYmd(r.attendance_date)}`));
+          const pendingMem = inMemoryAttendance.filter(
+            (m: any) => !dbIds.has(String(m.id)) && !dbKeys.has(`${m.user_id}_${toYmd(m.attendance_date)}`)
+          );
+
+          // Strictly deduplicate combined list by id
+          const seen = new Set<string>();
+          const uniqueCombined = [...result, ...pendingMem].filter((r: any) => {
+            const idStr = String(r.id);
+            if (seen.has(idStr)) return false;
+            seen.add(idStr);
+            return true;
+          });
+
+          return res.status(200).json({ success: true, data: uniqueCombined });
         }
       } catch (dbErr) {
         console.warn('[API] Attendance query DB fallback:', (dbErr as Error).message);
       }
     }
 
-    return res.status(200).json({ success: true, data: inMemoryAttendance });
+    const seenMem = new Set<string>();
+    const uniqueMem = inMemoryAttendance.filter((r: any) => {
+      const idStr = String(r.id);
+      if (seenMem.has(idStr)) return false;
+      seenMem.add(idStr);
+      return true;
+    });
+    return res.status(200).json({ success: true, data: uniqueMem });
   } catch (error: any) {
-    return res.status(200).json({ success: true, data: inMemoryAttendance });
+    const seenMem = new Set<string>();
+    const uniqueMem = inMemoryAttendance.filter((r: any) => {
+      const idStr = String(r.id);
+      if (seenMem.has(idStr)) return false;
+      seenMem.add(idStr);
+      return true;
+    });
+    return res.status(200).json({ success: true, data: uniqueMem });
   }
 });
 
@@ -686,12 +858,46 @@ app.post('/api/attendance', async (req, res) => {
     }
 
     const formattedDate = date.includes('T') ? date.split('T')[0] : date;
-    const user = inMemoryUsers.find((u) => String(u.id) === String(user_id));
+    const sql = getDb();
 
-    // Check existing record for this user and date
-    const existing = inMemoryAttendance.find(
-      (a) => String(a.user_id) === String(user_id) && a.attendance_date === formattedDate
+    // Find user profile from memory or DB
+    let user = inMemoryUsers.find((u) => String(u.id) === String(user_id));
+    if (!user && sql) {
+      try {
+        const uResult = await sql`
+          SELECT u.id, u.full_name AS name, u.nip, r.name AS role, u.profile_photo AS "avatarUrl"
+          FROM users u
+          LEFT JOIN roles r ON u.role_id = r.id
+          WHERE u.id = ${Number(user_id)}
+          LIMIT 1
+        `;
+        if (uResult && uResult.length > 0) {
+          user = uResult[0];
+        }
+      } catch (e) {}
+    }
+
+    // Check existing record in memory or DB
+    let existing = inMemoryAttendance.find(
+      (a) => String(a.user_id) === String(user_id) && String(a.attendance_date).split('T')[0] === formattedDate
     );
+
+    if (!existing && sql) {
+      try {
+        const dbExist = await sql`
+          SELECT * FROM attendance
+          WHERE user_id = ${Number(user_id)} AND attendance_date = ${formattedDate}
+          LIMIT 1
+        `;
+        if (dbExist && dbExist.length > 0) {
+          existing = dbExist[0];
+          const existsInMem = inMemoryAttendance.some((a) => String(a.id) === String(existing.id));
+          if (!existsInMem) {
+            inMemoryAttendance.unshift(existing);
+          }
+        }
+      } catch (e) {}
+    }
 
     const now = new Date();
 
@@ -732,17 +938,14 @@ app.post('/api/attendance', async (req, res) => {
         verified_by: null,
         created_at: now.toISOString(),
         updated_at: now.toISOString(),
-        user_name: user?.name || 'Staf TKK Inviolata',
-        nip: user?.nip || '1988000000000',
+        user_name: user?.name || 'Guru / Pegawai',
+        nip: user?.nip || '-',
         user_role: user?.role || 'GURU',
       };
 
-      inMemoryAttendance.unshift(newRecord);
-
-      const sql = getDb();
       if (sql) {
         try {
-          await sql`
+          const insertRes = await sql`
             INSERT INTO attendance (
               user_id,
               attendance_date,
@@ -756,7 +959,7 @@ app.post('/api/attendance', async (req, res) => {
               created_at,
               updated_at
             ) VALUES (
-              ${user_id},
+              ${Number(user_id)},
               ${formattedDate},
               ${now.toISOString()},
               ${status || 'hadir'},
@@ -768,22 +971,30 @@ app.post('/api/attendance', async (req, res) => {
               NOW(),
               NOW()
             )
+            RETURNING id
           `;
+          if (insertRes && insertRes.length > 0) {
+            newRecord.id = insertRes[0].id;
+          }
         } catch (dbErr) {
           console.warn('[API] Insert attendance DB fallback:', (dbErr as Error).message);
         }
       }
 
+      // Add to in-memory cache without duplicate ID
+      inMemoryAttendance = inMemoryAttendance.filter((a) => String(a.id) !== String(newRecord.id));
+      inMemoryAttendance.unshift(newRecord);
+
       return res.status(200).json({
         success: true,
-        message: 'Check-in berhasil',
+        message: 'Check-in berhasil disimpan',
         data: newRecord,
         type: 'check-in',
       });
     }
 
     // CHECK-OUT
-    if (existing.check_out_time !== null) {
+    if (existing.check_out_time !== null && existing.check_out_time !== undefined) {
       return res.status(400).json({
         success: false,
         error: 'Anda sudah melakukan check-out hari ini. Tidak bisa absen lagi.',
@@ -796,7 +1007,6 @@ app.post('/api/attendance', async (req, res) => {
     existing.check_out_photo_path = photo || user?.avatarUrl || null;
     existing.updated_at = now.toISOString();
 
-    const sql = getDb();
     if (sql) {
       try {
         await sql`
@@ -807,7 +1017,7 @@ app.post('/api/attendance', async (req, res) => {
             check_out_lng = ${lng || null},
             check_out_photo_path = ${photo || null},
             updated_at = NOW()
-          WHERE id = ${existing.id}
+          WHERE (id = ${existing.id} OR (user_id = ${Number(user_id)} AND attendance_date = ${formattedDate}))
         `;
       } catch (dbErr) {
         console.warn('[API] Checkout attendance DB fallback:', (dbErr as Error).message);
@@ -816,7 +1026,7 @@ app.post('/api/attendance', async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Check-out berhasil',
+      message: 'Check-out berhasil disimpan',
       data: existing,
       type: 'check-out',
     });
