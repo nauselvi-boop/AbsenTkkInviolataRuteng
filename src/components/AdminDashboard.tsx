@@ -389,7 +389,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       case 'monitoring':
         return renderMonitoring();
       case 'laporan':
-        return <AttendanceReports records={records} isPersonalView={false} />;
+        // ===== PERBAIKAN DI SINI: MENAMBAHKAN PROPS CURRENTUSER =====
+        return (
+          <AttendanceReports
+            records={records}
+            isPersonalView={false}
+            currentUserName={currentUser?.name}
+            currentUserRole={currentUser?.role}
+          />
+        );
       case 'pengguna':
         return (
           <UserManagement
