@@ -11,6 +11,9 @@ import {
   MapPin,
   Calendar,
   X,
+  Edit,
+  Save,
+  RefreshCw,
 } from 'lucide-react';
 import { exportAttendanceToExcel } from '../utils/excelUtils';
 
@@ -40,27 +43,45 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
     }
   }, [initialDatePreset]);
 
-  // Photo viewer modal
+  // State Modal Foto
   const [selectedRecordForPhoto, setSelectedRecordForPhoto] = useState<{
     record: AttendanceRecord;
     type: 'DATANG' | 'PULANG';
   } | null>(null);
 
+  // ===== STATE BARU: MODAL EDIT ABSENSI =====
+  const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
+  const [editForm, setEditForm] = useState({
+    checkIn: '',
+    checkOut: '',
+    reason: '',
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
   const todayStr = new Date().toISOString().split('T')[0];
 
+  // Helper: Format waktu untuk input time (HH:MM:SS)
+  const formatTimeForInput = (timeStr: string | null | undefined): string => {
+    if (!timeStr) return '';
+    try {
+      if (timeStr.includes('T')) {
+        const date = new Date(timeStr);
+        return date.toLocaleTimeString('en-GB', { hour12: false });
+      }
+      return timeStr.replace(/\./g, ':');
+    } catch (e) {
+      return '';
+    }
+  };
+
   const filteredRecords = records.filter((rec) => {
-    // Search
     const matchesSearch =
       rec.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       rec.nip.includes(searchTerm);
 
-    // Role
     const matchesRole = roleFilter === 'ALL' || rec.userRole === roleFilter;
-
-    // Status
     const matchesStatus = statusFilter === 'ALL' || rec.status === statusFilter;
 
-    // Date
     let matchesDate = true;
     if (datePreset === 'TODAY') {
       matchesDate = rec.date === todayStr;
@@ -82,6 +103,69 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
       ? `Rekap_Absensi_${currentUserName?.replace(/\s+/g, '_') || 'Saya'}.xlsx`
       : `Laporan_Absensi_TK_${new Date().toISOString().split('T')[0]}.xlsx`;
     exportAttendanceToExcel(filteredRecords, fileName);
+  };
+
+  // ===== HANDLER BARU: BUKA MODAL EDIT =====
+  const handleOpenEdit = (record: AttendanceRecord) => {
+    setEditingRecord(record);
+    setEditForm({
+      checkIn: formatTimeForInput(record.checkInTime),
+      checkOut: formatTimeForInput(record.checkOutTime),
+      reason: '',
+    });
+  };
+
+  // ===== HANDLER BARU: SIMPAN PERUBAHAN KE BACKEND =====
+  const handleSaveEdit = async () => {
+    if (!editingRecord) return;
+
+    if (!editForm.reason.trim()) {
+      alert('⚠️ Alasan koreksi wajib diisi!');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const recordDate = editingRecord.date.includes('T')
+        ? editingRecord.date.split('T')[0]
+        : editingRecord.date;
+
+      const newCheckIn = editForm.checkIn
+        ? `${recordDate}T${editForm.checkIn}+08:00`
+        : null;
+
+      const newCheckOut = editForm.checkOut
+        ? `${recordDate}T${editForm.checkOut}+08:00`
+        : null;
+
+      const response = await fetch('/api/attendance', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingRecord.id,
+          check_in_time: newCheckIn,
+          check_out_time: newCheckOut,
+          reason: editForm.reason,
+          editor_name: currentUserName || 'Admin Utama',
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('✅ Data absensi berhasil dikoreksi!');
+        setEditingRecord(null);
+        window.location.reload();
+      } else {
+        alert('❌ Gagal menyimpan: ' + (result.error || 'Terjadi kesalahan'));
+      }
+    } catch (error: any) {
+      console.error('Error saving edit:', error);
+      alert('❌ Terjadi kesalahan pada server saat menyimpan data.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const totalCount = filteredRecords.length;
@@ -162,7 +246,6 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
             </div>
           )}
 
-          {/* Date presets */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] font-semibold text-slate-500">Rentang:</span>
             {(['ALL', 'TODAY', 'WEEK', 'MONTH'] as const).map((d) => (
@@ -175,18 +258,11 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {d === 'ALL'
-                  ? 'Semua'
-                  : d === 'TODAY'
-                  ? 'Hari Ini'
-                  : d === 'WEEK'
-                  ? '7 Hari'
-                  : 'Bulan Ini'}
+                {d === 'ALL' ? 'Semua' : d === 'TODAY' ? 'Hari Ini' : d === 'WEEK' ? '7 Hari' : 'Bulan Ini'}
               </button>
             ))}
           </div>
 
-          {/* Role Filter (if Admin) */}
           {!isPersonalView && (
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-semibold text-slate-500">Peran:</span>
@@ -222,18 +298,23 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
                 <th className="py-3.5 px-4">Validasi GPS</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4">Durasi</th>
+                {/* KOLOM BARU: AKSI EDIT */}
+                {!isPersonalView && <th className="py-3.5 px-4 text-center">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={isPersonalView ? 8 : 9} className="py-8 text-center text-slate-400">
                     Belum ada riwayat absensi yang sesuai filter.
                   </td>
                 </tr>
               ) : (
                 filteredRecords.map((rec, idx) => (
-                  <tr key={`report-rec-${rec.id || idx}-${rec.userId || ''}-${rec.date}-${idx}`} className="hover:bg-slate-50/70 transition">
+                  <tr
+                    key={`report-rec-${rec.id || idx}-${rec.userId || ''}-${rec.date}-${idx}`}
+                    className="hover:bg-slate-50/70 transition"
+                  >
                     {/* Tanggal */}
                     <td className="py-3 px-4 whitespace-nowrap">
                       <p className="font-bold text-slate-900">{rec.date}</p>
@@ -254,22 +335,16 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
                       </td>
                     )}
 
-                    {/* Selfie Photos (Datang & Pulang) */}
+                    {/* Selfie Photos */}
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
                         {rec.checkInPhoto ? (
                           <div
-                            onClick={() =>
-                              setSelectedRecordForPhoto({ record: rec, type: 'DATANG' })
-                            }
+                            onClick={() => setSelectedRecordForPhoto({ record: rec, type: 'DATANG' })}
                             className="relative group cursor-pointer w-11 h-11 rounded-xl overflow-hidden border-2 border-emerald-500 shadow-sm"
                             title="Klik untuk melihat bukti foto selfie datang"
                           >
-                            <img
-                              src={rec.checkInPhoto}
-                              alt="Selfie Datang"
-                              className="w-full h-full object-cover"
-                            />
+                            <img src={rec.checkInPhoto} alt="Selfie Datang" className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
                               <Eye className="w-3.5 h-3.5" />
                             </div>
@@ -280,17 +355,11 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
 
                         {rec.checkOutPhoto ? (
                           <div
-                            onClick={() =>
-                              setSelectedRecordForPhoto({ record: rec, type: 'PULANG' })
-                            }
+                            onClick={() => setSelectedRecordForPhoto({ record: rec, type: 'PULANG' })}
                             className="relative group cursor-pointer w-11 h-11 rounded-xl overflow-hidden border-2 border-blue-500 shadow-sm"
                             title="Klik untuk melihat bukti foto selfie pulang"
                           >
-                            <img
-                              src={rec.checkOutPhoto}
-                              alt="Selfie Pulang"
-                              className="w-full h-full object-cover"
-                            />
+                            <img src={rec.checkOutPhoto} alt="Selfie Pulang" className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
                               <Eye className="w-3.5 h-3.5" />
                             </div>
@@ -326,21 +395,17 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1 text-slate-700">
                         <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span className="font-bold">{rec.checkInLocation.distanceMeters}m</span>
+                        <span className="font-bold">{rec.checkInLocation?.distanceMeters || 0}m</span>
                         <span className="text-[11px] text-slate-400">dari TK</span>
                       </div>
-                      <p className="text-[10px] text-emerald-700 font-semibold">
-                        Lolos Geofence (Live GPS)
-                      </p>
+                      <p className="text-[10px] text-emerald-700 font-semibold">Lolos Geofence (Live GPS)</p>
                     </td>
 
                     {/* Status */}
                     <td className="py-3 px-4">
                       <span
                         className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide ${
-                          rec.status === 'HADIR'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-amber-100 text-amber-800'
+                          rec.status === 'HADIR' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                         }`}
                       >
                         {rec.status}
@@ -350,11 +415,23 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
                     {/* Durasi Kerja */}
                     <td className="py-3 px-4 whitespace-nowrap font-medium text-slate-600">
                       {rec.workHoursMinutes
-                        ? `${Math.floor(rec.workHoursMinutes / 60)}j ${
-                            rec.workHoursMinutes % 60
-                          }m`
+                        ? `${Math.floor(rec.workHoursMinutes / 60)}j ${rec.workHoursMinutes % 60}m`
                         : '-'}
                     </td>
+
+                    {/* KOLOM BARU: TOMBOL EDIT */}
+                    {!isPersonalView && (
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => handleOpenEdit(rec)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition shadow-sm"
+                          title="Koreksi Data Absensi"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          Edit
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -363,7 +440,98 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
         </div>
       </div>
 
-      {/* Photo Viewer Modal */}
+      {/* ================= MODAL EDIT ABSENSI ================= */}
+      {editingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-amber-600" />
+                <h3 className="font-bold text-slate-800">Koreksi Absensi</h3>
+              </div>
+              <button
+                onClick={() => setEditingRecord(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-2">
+                <p className="text-xs text-blue-800 font-medium">
+                  Nama: <span className="font-bold">{editingRecord.userName}</span> <br />
+                  Tanggal: <span className="font-bold">{editingRecord.date.split('T')[0]}</span>
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Jam Datang (WITA)</label>
+                <input
+                  type="time"
+                  step="1"
+                  value={editForm.checkIn}
+                  onChange={(e) => setEditForm({ ...editForm, checkIn: e.target.value })}
+                  className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Jam Pulang (WITA)</label>
+                <input
+                  type="time"
+                  step="1"
+                  value={editForm.checkOut}
+                  onChange={(e) => setEditForm({ ...editForm, checkOut: e.target.value })}
+                  className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Alasan Koreksi <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={editForm.reason}
+                  onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
+                  placeholder="Contoh: Bug sistem, absen ganda, atau kesalahan teknis lainnya..."
+                  rows={3}
+                  className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition resize-none"
+                ></textarea>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button
+                onClick={() => setEditingRecord(null)}
+                disabled={isSaving}
+                className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-bold rounded-xl transition disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition shadow-md shadow-emerald-200 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Simpan Perubahan
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL FOTO SELFIE ================= */}
       {selectedRecordForPhoto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
@@ -398,11 +566,10 @@ export const AttendanceReports: React.FC<AttendanceReportsProps> = ({
               </div>
 
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1">
-                <p className="font-semibold text-slate-800">
-                  Keterangan Otentikasi:
-                </p>
+                <p className="font-semibold text-slate-800">Keterangan Otentikasi:</p>
                 <p className="text-slate-600 text-[11px]">
-                  Foto direkam langsung melalui live webcam/kamera perangkat dengan validasi liveness check dan segel timestamp digital.
+                  Foto direkam langsung melalui live webcam/kamera perangkat dengan validasi liveness
+                  check dan segel timestamp digital.
                 </p>
               </div>
             </div>
